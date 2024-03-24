@@ -1,0 +1,52 @@
+@WebUI_HostAddress = https://localhost:7056/api
+
+@championshipId = 99tqqbw8y70g
+
+###
+
+# @name PostChampionship
+POST {{WebUI_HostAddress}}/championships/
+Content-Type: application/json
+
+{
+  "name": "Formula 1"
+}
+
+###
+
+GET {{WebUI_HostAddress}}/championships/{{championshipId}}
+
+###
+GET {{WebUI_HostAddress}}/championships/
+
+###
+
+PUT https://localhost:7056/api/championships/{{championshipId}}
+Content-Type: application/json
+If-Match: "06d5a352"
+
+{
+  "name": "Formula 1.5"
+}
+
+###
+
+@trackId = 0
+
+###
+
+# @name PostTrack
+POST {{WebUI_HostAddress}}/championships/{{championshipId}}/tracks
+Content-Type: application/json
+
+{
+  "name": "CM Circuit Zandvoort",
+  "length": 5000000,
+  "city": "Zandvoort",
+  "country": "The Netherlands"
+}
+
+###
+
+# @name ListTracks
+GET {{WebUI_HostAddress}}/championships/{{championshipId}}/tracks
