@@ -11,6 +11,7 @@ public readonly struct Distance : IEquatable<Distance>
     readonly long _millimeters;
     Distance(long millimeters)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(millimeters, nameof(millimeters));
         _millimeters = millimeters;
     }
 

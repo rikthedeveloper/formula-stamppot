@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints.Internal.Specifications;
 using WebUI.Endpoints.Resources;
 using WebUI.Endpoints.Resources.Interfaces;
+using WebUI.Filters;
 using WebUI.Types;
 
 namespace WebUI.Endpoints;
@@ -24,12 +26,12 @@ public class TrackResource(Track track, string version) : IVersioned
     public string Version { get; } = version;
 }
 
-public class TrackChange
+public class TrackChangeBody
 {
-    public required string Name { get; init; } = string.Empty;
-    public required Distance Length { get; init; } = Distance.Zero;
-    public required string City { get; init; } = string.Empty;
-    public required string Country { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public Field<Distance> Length { get; init; } = Distance.Zero;
+    public string City { get; init; } = string.Empty;
+    public string Country { get; init; } = string.Empty;
 
     public void Apply(Track track)
     {
@@ -37,6 +39,16 @@ public class TrackChange
         track.Length = Length;
         track.City = City;
         track.Country = Country;
+    }
+
+    public IEnumerable<ValidationMessage> Validate()
+    {
+        if (Name.Length is 0) yield return new RequiredValidationMessage(nameof(Name));
+        else if (Name.Length is < 3 or > 100) yield return new StringLengthValidationMessage(nameof(Name), 3, 100);
+        if (City.Length is 0) yield return new RequiredValidationMessage(nameof(City));
+        else if (City.Length is < 3 or > 100) yield return new StringLengthValidationMessage(nameof(City), 3, 100);
+        if (Country.Length is 0) yield return new RequiredValidationMessage(nameof(Country));
+        else if (Country.Length is < 3 or > 100) yield return new StringLengthValidationMessage(nameof(Country), 3, 100);
     }
 }
 
@@ -54,7 +66,7 @@ public static class TrackEndpoints
 
     public static async Task<IResult> CreateTrack(
         ChampionshipId championshipId,
-        TrackChange change,
+        TrackChangeBody change,
         [FromServices] IObjectStore objectStore,
         [FromServices] GenerateId generateId,
         CancellationToken cancellationToken = default)
@@ -114,7 +126,7 @@ public static class TrackEndpoints
     public static async Task<IResult> UpdateTrackById(
         ChampionshipId championshipId,
         TrackId trackId,
-        [FromBody] TrackChange change,
+        [FromBody] TrackChangeBody change,
         [FromHeader(Name = "If-Match")] string version,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)

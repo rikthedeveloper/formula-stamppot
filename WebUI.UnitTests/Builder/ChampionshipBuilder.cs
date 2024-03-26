@@ -5,12 +5,11 @@ using WebUI.UnitTests.Fakes;
 
 namespace WebUI.UnitTests.Builder;
 
-internal class ChampionshipBuilder : Builder<Championship>
+internal class ChampionshipBuilder : EntityBuilder<Championship>
 {
     protected override Championship CreateInstance()
-        => new()
+        => new(Get(c => c.ChampionshipId, new(IdGeneratorHelper.GenerateId())))
         {
-            ChampionshipId = Get(c => c.ChampionshipId) == default ? new(IdGeneratorHelper.GenerateId()) : Get(c => c.ChampionshipId),
             Name = Get(c => c.Name)
         };
 

@@ -15,7 +15,7 @@ public class TrackEndpointsTests
     readonly ChampionshipId championshipId = new (IdGeneratorHelper.GenerateId());
     readonly TrackId trackId = new (IdGeneratorHelper.GenerateId());
 
-    static TrackChange SomeTrackChange => new TrackChange() { Name = "Updated Test Track", City = "Test City", Country = "Netherlands", Length = Distance.FromKilometers(5) };
+    static TrackChangeBody SomeTrackChange => new TrackChangeBody() { Name = "Updated Test Track", City = "Test City", Country = "Netherlands", Length = Distance.FromKilometers(5) };
     readonly string versionEtag = EndpointTestsHelpers.WrapEtag(FakeObjectStore.DefaultObjectVersion);
 
     [Fact]

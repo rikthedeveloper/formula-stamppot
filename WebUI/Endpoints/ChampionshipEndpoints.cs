@@ -4,6 +4,7 @@ using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints.Internal.Specifications;
 using WebUI.Endpoints.Resources;
 using WebUI.Endpoints.Resources.Interfaces;
+using WebUI.Filters;
 using WebUI.Types;
 
 namespace WebUI.Endpoints;
@@ -15,9 +16,20 @@ public class ChampionshipResource(Championship championship, string version) : I
     public string Version { get; } = version;
 }
 
-public class ChampionshipChange
+public class ChampionshipChangeBody : IValidator
 {
-    public required string Name { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+
+    public void Apply(Championship championship)
+    {
+        championship.Name = Name;
+    }
+
+    public IEnumerable<ValidationMessage> Validate()
+    {
+        if (Name.Length is 0) yield return new RequiredValidationMessage(nameof(Name));
+        else if (Name.Length is < 3 or > 100) yield return new StringLengthValidationMessage(nameof(Name), 3, 100);
+    }
 }
 
 public static class ChampionshipEndpoints
@@ -33,17 +45,14 @@ public static class ChampionshipEndpoints
     }
 
     public static async Task<IResult> CreateChampionship(
-        ChampionshipChange change,
+        ChampionshipChangeBody change,
         [FromServices] IObjectStore objectStore,
         [FromServices] GenerateId generateId,
         CancellationToken cancellationToken = default)
     {
         ChampionshipId newId = new(generateId());
-        var championship = new Championship()
-        {
-            ChampionshipId = newId,
-            Name = change.Name
-        };
+        var championship = new Championship(newId);
+        change.Apply(championship);
 
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
         await transaction.Championships.InsertAsync(championship.ChampionshipId, championship, cancellationToken);
@@ -75,7 +84,7 @@ public static class ChampionshipEndpoints
 
     public static async Task<IResult> UpdateChampionshipById(
         ChampionshipId championshipId,
-        [FromBody] ChampionshipChange change,
+        [FromBody] ChampionshipChangeBody change,
         [FromHeader(Name = "If-Match")] string version,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
@@ -85,7 +94,7 @@ public static class ChampionshipEndpoints
         var championship = await transaction.Championships.FindAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken)
             ?? throw new InvalidChampionshipException(championshipId);
 
-        championship.Object.Name = change.Name;
+        change.Apply(championship);
         if (await transaction.Championships.UpdateAsync([new ChampionshipIdSpecification(championshipId), new VersionMatchSpecification(new(version))], championship.Object, cancellationToken) == 0)
         {
             throw new OptimisticConcurrencyException();

@@ -1,11 +1,13 @@
 using IdGen;
 using IdGen.DependencyInjection;
+using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json.Serialization.Metadata;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
 using WebUI.Domain.ObjectStore.Internal;
 using WebUI.Endpoints;
 using WebUI.Endpoints.Resources.Interfaces;
+using WebUI.Filters;
 using WebUI.JsonConverters;
 using WebUI.Model.Hypermedia;
 using WebUI.Types;
@@ -43,26 +45,7 @@ public class Program
                 .Configure<Track>(ConfigureCollection.Tracks)
                 .ConfigureJson(opts => opts.Converters.Add(new DistanceJsonConverter())));
 
-            services.ConfigureHttpJsonOptions(opts =>
-            {
-                static void IgnoreVersionedFields(JsonTypeInfo typeInfo)
-                {
-                    if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type.GetInterface(nameof(IVersioned)) is not null)
-                    {
-                        var versionProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(IVersioned.Version), StringComparison.OrdinalIgnoreCase));
-                        typeInfo.Properties.Remove(versionProperty!); // This actually works with a null value despite the annotation.
-                    }
-                }
-
-                opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<ChampionshipId>("BASE36"));
-                opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TrackId>("BASE36"));
-                opts.SerializerOptions.Converters.Add(new HypermediaJsonConverterFactory());
-                opts.SerializerOptions.Converters.Add(new DistanceJsonConverter());
-                opts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
-                {
-                    Modifiers = { IgnoreVersionedFields }
-                };
-            });
+            services.ConfigureHttpJsonOptions(ConfigureHttpJson);
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -88,6 +71,38 @@ public class Program
                 api.UseEndpoints(endpoints => endpoints.MapFormulaApi(Environment));
             });
         }
+    }
+
+    static void ConfigureHttpJson(JsonOptions opts)
+    {
+        static void IgnoreVersionedFields(JsonTypeInfo typeInfo)
+        {
+            if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type.GetInterface(nameof(IVersioned)) is not null)
+            {
+                var versionProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(IVersioned.Version), StringComparison.OrdinalIgnoreCase));
+                typeInfo.Properties.Remove(versionProperty!); // This actually works with a null value despite the annotation.
+            }
+        }
+
+        static void IgnoreValidationPropertyNameFields(JsonTypeInfo typeInfo)
+        {
+            if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type == typeof(ValidationMessage))
+            {
+                var propertyNameProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(ValidationMessage.PropertyName), StringComparison.OrdinalIgnoreCase));
+                typeInfo.Properties.Remove(propertyNameProperty!); // This actually works with a null value despite the annotation.
+            }
+        }
+
+        opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<ChampionshipId>("BASE36"));
+        opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TrackId>("BASE36"));
+        opts.SerializerOptions.Converters.Add(new HypermediaJsonConverterFactory());
+        opts.SerializerOptions.Converters.Add(new DistanceJsonConverter());
+        opts.SerializerOptions.Converters.Add(new ValidationMessagesJsonConverter());
+        opts.SerializerOptions.Converters.Add(new InputJsonConverterFactory());
+        opts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
+        {
+            Modifiers = { IgnoreVersionedFields, IgnoreValidationPropertyNameFields }
+        };
     }
 
     static class ConfigureCollection

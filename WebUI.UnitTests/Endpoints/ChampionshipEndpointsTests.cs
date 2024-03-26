@@ -14,7 +14,7 @@ public class ChampionshipEndpointsTests
     public async Task CreateChampionship_Returns_CreatedAtRouteResult()
     {
         // Arrange
-        var championshipChange = new ChampionshipChange { Name = "Test Championship" };
+        var championshipChange = new ChampionshipChangeBody { Name = "Test Championship" };
         var objectStore = new FakeObjectStore();
 
         // Act
@@ -69,7 +69,7 @@ public class ChampionshipEndpointsTests
     {
         // Arrange
         var championshipId = new ChampionshipId(IdGeneratorHelper.GenerateId());
-        var championshipChange = new ChampionshipChange { Name = "Updated Test Championship" };
+        var championshipChange = new ChampionshipChangeBody { Name = "Updated Test Championship" };
         var championship = Some.Championship.ThatIsValid().WithId(championshipId);
         var objectStore = new FakeObjectStore([championship]);
 
@@ -87,7 +87,7 @@ public class ChampionshipEndpointsTests
     public async Task CreateChampionship_Throws_InvalidChampionshipException_When_ObjectStore_Returns_Null()
     {
         // Arrange
-        var championshipChange = new ChampionshipChange { Name = "Test Championship" };
+        var championshipChange = new ChampionshipChangeBody { Name = "Test Championship" };
         var objectStore = new FakeObjectStore();
         // Act & Assert
         var createFunc = () => ChampionshipEndpoints.CreateChampionship(championshipChange, objectStore, IdGeneratorHelper.GenerateId);
@@ -111,7 +111,7 @@ public class ChampionshipEndpointsTests
     {
         // Arrange
         var championshipId = new ChampionshipId(IdGeneratorHelper.GenerateId());
-        var championshipChange = new ChampionshipChange { Name = "Updated Test Championship" };
+        var championshipChange = new ChampionshipChangeBody { Name = "Updated Test Championship" };
         var objectStore = new FakeObjectStore();
 
         // Act & Assert
@@ -124,7 +124,7 @@ public class ChampionshipEndpointsTests
     {
         // Arrange
         var championshipId = new ChampionshipId(IdGeneratorHelper.GenerateId());
-        var championshipChange = new ChampionshipChange { Name = "Updated Test Championship" };
+        var championshipChange = new ChampionshipChangeBody { Name = "Updated Test Championship" };
         var championship = Some.Championship.ThatIsValid().WithId(championshipId);
         var objectStore = new FakeObjectStore([championship]);
 
