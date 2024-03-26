@@ -14,6 +14,7 @@ public class ChampionshipResource(Championship championship, string version) : I
     public ChampionshipId ChampionshipId { get; } = championship.ChampionshipId;
     public string Name { get; } = championship.Name;
     public string Version { get; } = version;
+    public FeatureCollection Features { get; } = championship.Features;
 }
 
 public class ChampionshipChangeBody : IValidator

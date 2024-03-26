@@ -6,4 +6,5 @@ public class Championship(ChampionshipId championshipId)
 {
     public ChampionshipId ChampionshipId { get; } = championshipId;
     public string Name { get; set; } = string.Empty;
+    public FeatureCollection Features { get; set; } = new();
 }

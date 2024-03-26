@@ -7,10 +7,11 @@ namespace WebUI.UnitTests.Builder;
 
 internal class ChampionshipBuilder : EntityBuilder<Championship>
 {
-    protected override Championship CreateInstance()
-        => new(Get(c => c.ChampionshipId, new(IdGeneratorHelper.GenerateId())))
+    protected override Championship CreateInstance() => 
+        new(Get(c => c.ChampionshipId, new(IdGeneratorHelper.GenerateId())))
         {
-            Name = Get(c => c.Name)
+            Name = Get(c => c.Name, string.Empty),
+            Features = Get(c => c.Features, new())
         };
 
     public ChampionshipBuilder WithName(string name)
@@ -28,6 +29,12 @@ internal class ChampionshipBuilder : EntityBuilder<Championship>
     public ChampionshipBuilder WithId(long championshipId)
     {
         With(c => c.ChampionshipId, new(championshipId));
+        return this;
+    }
+
+    public ChampionshipBuilder WithFeature(IFeature feature)
+    {
+        With(c => c.Features, new(Get(c => c.Features, new()).Append(feature)));
         return this;
     }
 

@@ -2,11 +2,13 @@ using IdGen;
 using IdGen.DependencyInjection;
 using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json.Serialization.Metadata;
+using WebUI.Configuration;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
 using WebUI.Domain.ObjectStore.Internal;
 using WebUI.Endpoints;
 using WebUI.Endpoints.Resources.Interfaces;
+using WebUI.Features;
 using WebUI.Filters;
 using WebUI.JsonConverters;
 using WebUI.Model.Hypermedia;
@@ -46,6 +48,9 @@ public class Program
                 .ConfigureJson(opts => opts.Converters.Add(new DistanceJsonConverter())));
 
             services.ConfigureHttpJsonOptions(ConfigureHttpJson);
+
+            services.ConfigureFeatures()
+                .Register<FlatDriverSkillFeature>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

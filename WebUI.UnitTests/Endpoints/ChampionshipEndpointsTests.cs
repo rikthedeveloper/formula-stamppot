@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using WebUI.Domain;
 using WebUI.Endpoints;
 using WebUI.Endpoints.Resources;
+using WebUI.Features;
 using WebUI.Types;
 using WebUI.UnitTests.Builder;
 using WebUI.UnitTests.Fakes;
@@ -51,7 +52,10 @@ public class ChampionshipEndpointsTests
     public async Task FindChampionshipById_Returns_OkResult_With_ChampionshipResource()
     {
         // Arrange
-        var championship = Some.Championship.ThatIsValid().Build();
+        var championship = Some.Championship.ThatIsValid()
+            .WithFeature(new FlatDriverSkillFeature(true))
+            .Build();
+
         var objectStore = new FakeObjectStore([championship]);
 
         // Act
