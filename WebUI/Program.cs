@@ -1,6 +1,7 @@
 using IdGen;
 using IdGen.DependencyInjection;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.Options;
 using System.Text.Json.Serialization.Metadata;
 using WebUI.Configuration;
 using WebUI.Domain;
@@ -47,7 +48,7 @@ public class Program
                 .Configure<Track>(ConfigureCollection.Tracks)
                 .ConfigureJson(opts => opts.Converters.Add(new DistanceJsonConverter())));
 
-            services.ConfigureHttpJsonOptions(ConfigureHttpJson);
+            services.ConfigureOptions<ConfigureHttpJsonOptions>();
 
             services.ConfigureFeatures()
                 .Register<FlatDriverSkillFeature>();
@@ -77,37 +78,50 @@ public class Program
             });
         }
     }
-
-    static void ConfigureHttpJson(JsonOptions opts)
+    private class ConfigureHttpJsonOptions : IConfigureOptions<JsonOptions>
     {
-        static void IgnoreVersionedFields(JsonTypeInfo typeInfo)
+        readonly FeatureRegistry _featureRegistry;
+
+        public ConfigureHttpJsonOptions(FeatureRegistry featureRegistry)
         {
-            if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type.GetInterface(nameof(IVersioned)) is not null)
-            {
-                var versionProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(IVersioned.Version), StringComparison.OrdinalIgnoreCase));
-                typeInfo.Properties.Remove(versionProperty!); // This actually works with a null value despite the annotation.
-            }
+            _featureRegistry = featureRegistry;
         }
 
-        static void IgnoreValidationPropertyNameFields(JsonTypeInfo typeInfo)
+        public void Configure(JsonOptions opts)
         {
-            if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type == typeof(ValidationMessage))
+            static void IgnoreVersionedFields(JsonTypeInfo typeInfo)
             {
-                var propertyNameProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(ValidationMessage.PropertyName), StringComparison.OrdinalIgnoreCase));
-                typeInfo.Properties.Remove(propertyNameProperty!); // This actually works with a null value despite the annotation.
+                if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type.GetInterface(nameof(IVersioned)) is not null)
+                {
+                    var versionProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(IVersioned.Version), StringComparison.OrdinalIgnoreCase));
+                    typeInfo.Properties.Remove(versionProperty!); // This actually works with a null value despite the annotation.
+                }
             }
-        }
 
-        opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<ChampionshipId>("BASE36"));
-        opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TrackId>("BASE36"));
-        opts.SerializerOptions.Converters.Add(new HypermediaJsonConverterFactory());
-        opts.SerializerOptions.Converters.Add(new DistanceJsonConverter());
-        opts.SerializerOptions.Converters.Add(new ValidationMessagesJsonConverter());
-        opts.SerializerOptions.Converters.Add(new InputJsonConverterFactory());
-        opts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
-        {
-            Modifiers = { IgnoreVersionedFields, IgnoreValidationPropertyNameFields }
-        };
+            static void IgnoreValidationPropertyNameFields(JsonTypeInfo typeInfo)
+            {
+                if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type == typeof(ValidationMessage))
+                {
+                    var propertyNameProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(ValidationMessage.PropertyName), StringComparison.OrdinalIgnoreCase));
+                    typeInfo.Properties.Remove(propertyNameProperty!); // This actually works with a null value despite the annotation.
+                }
+            }
+
+            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<ChampionshipId>("BASE36"));
+            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TrackId>("BASE36"));
+            opts.SerializerOptions.Converters.Add(new HypermediaJsonConverterFactory());
+            opts.SerializerOptions.Converters.Add(new DistanceJsonConverter());
+            opts.SerializerOptions.Converters.Add(new ValidationMessagesJsonConverter());
+            opts.SerializerOptions.Converters.Add(new InputJsonConverterFactory());
+            opts.SerializerOptions.Converters.Add(new FeatureCollectionJsonConverter(_featureRegistry));
+            opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureDriverData>(_featureRegistry, reg => reg.DriverData));
+            opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureTrackData>(_featureRegistry, reg => reg.TrackData));
+            opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureTeamData>(_featureRegistry, reg => reg.TeamData));
+            opts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
+            {
+                Modifiers = { IgnoreVersionedFields, IgnoreValidationPropertyNameFields }
+            };
+        }
     }
 
     static class ConfigureCollection

@@ -28,6 +28,9 @@ public interface IFeatureWithTrackData : IFeature
 public abstract record class FeatureBase(bool Enabled) : IFeature;
 
 public interface IFeatureData { }
+public interface IFeatureDriverData : IFeatureData { }
+public interface IFeatureTeamData : IFeatureData { }
+public interface IFeatureTrackData : IFeatureData { }
 
 public class FeatureCollection : IEnumerable<IFeature>
 {
@@ -68,5 +71,33 @@ public class FeatureCollection : IEnumerable<IFeature>
     }
 
     public IEnumerator<IFeature> GetEnumerator() => _features.Values.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
+public class FeatureDataCollection<TFeatureData> : IEnumerable<TFeatureData> 
+    where TFeatureData : IFeatureData
+{
+    readonly ImmutableDictionary<Type, TFeatureData> _features;
+
+    public FeatureDataCollection()
+        : this(ImmutableDictionary.Create<Type, TFeatureData>())
+    {
+    }
+
+    public FeatureDataCollection(IDictionary<Type, TFeatureData> features)
+        : this(features.ToImmutableDictionary())
+    {
+    }
+
+    protected FeatureDataCollection(ImmutableDictionary<Type, TFeatureData> features)
+    {
+        _features = features;
+    }
+
+    public T? Get<T>()
+        where T : TFeatureData
+        => (T?)_features.GetValueOrDefault(typeof(T));
+
+    public IEnumerator<TFeatureData> GetEnumerator() => _features.Values.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
