@@ -5,15 +5,16 @@ namespace WebUI.Domain.ObjectStore.Internal;
 public class DefaultObjectTransaction(
     SqliteConnection _conn,
     SqliteTransaction _transaction,
-    ObjectStoreOptions _storeOptions,
+    ObjectStoreCollectionOptions _collections,
+    ObjectStoreJsonOptions _jsonOptions,
     TimeProvider _timeProvider) : IObjectTransaction, IDisposable, IAsyncDisposable
 {
     bool _isCommitted = false;
 
-    readonly Lazy<IObjectCollection<Championship>> _championships = new(() => new DefaultObjectCollection<Championship>(_conn, _transaction, nameof(Championship), _storeOptions, _timeProvider));
-    public IObjectCollection<Championship> Championships => _championships.Value;
-    readonly Lazy<IObjectCollection<Track>> _tracks = new(() => new DefaultObjectCollection<Track>(_conn, _transaction, nameof(Track), _storeOptions, _timeProvider));
-    public IObjectCollection<Track> Tracks => _tracks.Value;
+    IObjectCollection<Championship>? _championships;
+    public IObjectCollection<Championship> Championships => _championships ??= CreateCollection<Championship>();
+    IObjectCollection<Track>? _tracks;
+    public IObjectCollection<Track> Tracks => _tracks ??= CreateCollection<Track>();
 
     public async Task CommitAsync(CancellationToken cancellationToken)
     {
@@ -22,6 +23,9 @@ public class DefaultObjectTransaction(
     }
 
     public async Task RollbackAsync(CancellationToken cancellationToken) => await _transaction.RollbackAsync(cancellationToken);
+
+    DefaultObjectCollection<TEntity> CreateCollection<TEntity>() where TEntity : class
+        => new (_conn, _transaction, _collections, _jsonOptions, _timeProvider);
 
     #region IDisposable, IAsyncDisposable implementation
     private bool _disposedValue;

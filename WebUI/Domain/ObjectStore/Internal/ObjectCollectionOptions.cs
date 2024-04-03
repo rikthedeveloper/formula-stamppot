@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-
-namespace WebUI.Domain.ObjectStore.Internal;
+﻿namespace WebUI.Domain.ObjectStore.Internal;
 
 public class ObjectCollectionOptions<TEntity>() : ObjectCollectionOptions(typeof(TEntity))
     where TEntity : class
@@ -61,17 +59,12 @@ public class ObjectCollectionOptions(Type type)
     }
 }
 
-public class ObjectStoreOptions(IServiceCollection services)
+public class ObjectStoreCollectionOptions
 {
-    readonly IServiceCollection _services = services;
-
-    public static JsonSerializerOptions DefaultJsonSerializerOptions { get; } = new JsonSerializerOptions(JsonSerializerDefaults.General);
-    public JsonSerializerOptions JsonSerializerOptions { get; } = new(DefaultJsonSerializerOptions);
-
     readonly Dictionary<Type, ObjectCollectionOptions> _collections = [];
-    public IReadOnlyDictionary<Type, ObjectCollectionOptions> Collections => _collections;
+    public IReadOnlyList<ObjectCollectionOptions> Collections => _collections.Values.ToList();
 
-    public ObjectStoreOptions Configure<TEntity>(Action<ObjectCollectionOptions<TEntity>> configure)
+    public ObjectStoreCollectionOptions ConfigureCollection<TEntity>(Action<ObjectCollectionOptions<TEntity>> configure)
         where TEntity : class
     {
         var opts = new ObjectCollectionOptions<TEntity>();
@@ -80,23 +73,7 @@ public class ObjectStoreOptions(IServiceCollection services)
         return this;
     }
 
-    public ObjectStoreOptions ConfigureJson(Action<JsonSerializerOptions> configure)
-    {
-        configure(JsonSerializerOptions);
-        return this;
-    }
-
-    public ObjectStoreOptions UseInMemoryDb()
-    {
-        _services.AddSingleton<IDbConnectionProvider>(new ServiceProviderLifetimeDbConnectionProvider());
-        _services.AddSingleton(sp => sp.GetRequiredService<IDbConnectionProvider>().GetConnection());
-        return this;
-    }
-
-    public ObjectStoreOptions UseFile(string connectionString)
-    {
-        _services.AddTransient<IDbConnectionProvider>(_ => new ScopedDbConnectionProvider(connectionString));
-        _services.AddTransient(sp => sp.GetRequiredService<IDbConnectionProvider>().GetConnection());
-        return this;
-    }
+    public ObjectCollectionOptions<TEntity> Get<TEntity>()
+        where TEntity : class
+        => _collections.TryGetValue(typeof(TEntity), out var collection) ? (ObjectCollectionOptions<TEntity>)collection : throw new ArgumentException();
 }

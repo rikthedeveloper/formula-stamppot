@@ -1,10 +1,11 @@
 ﻿using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 using System.Data;
 using System.Text;
 
 namespace WebUI.Domain.ObjectStore.Internal.Migration;
 
-public class DataMigrator(SqliteConnection conn, ObjectStoreOptions options) : IHostedService
+public class DataMigrator(SqliteConnection conn, IOptions<ObjectStoreCollectionOptions> options) : IHostedService
 {
     public async Task MigrateDatabase(CancellationToken cancellationToken = default)
     {
@@ -13,7 +14,7 @@ public class DataMigrator(SqliteConnection conn, ObjectStoreOptions options) : I
         try
         {
             var sb = new StringBuilder();
-            foreach (var collection in options.Collections.Values)
+            foreach (var collection in options.Value.Collections)
             {
                 sb.AppendLine(GetTableExpression(collection));
             }

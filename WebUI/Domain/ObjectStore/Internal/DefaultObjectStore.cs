@@ -1,18 +1,26 @@
 ﻿using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 using System.Data;
 
 namespace WebUI.Domain.ObjectStore.Internal;
 
-public class DefaultObjectStore(SqliteConnection _conn, ObjectStoreOptions _storeOptions, TimeProvider _timeProvider) : IObjectStore
+public class DefaultObjectStore(
+    SqliteConnection _conn,
+    IOptions<ObjectStoreCollectionOptions> _collections,
+    IOptions<ObjectStoreJsonOptions> _jsonOptions,
+    TimeProvider _timeProvider) : IObjectStore
 {
-    readonly Lazy<IReadOnlyObjectCollection<Championship>> _championships = new(() => new DefaultObjectCollection<Championship>(_conn, null, nameof(Championship), _storeOptions, _timeProvider));
-    public IReadOnlyObjectCollection<Championship> Championships => _championships.Value;
-    readonly Lazy<IReadOnlyObjectCollection<Track>> _tracks = new(() => new DefaultObjectCollection<Track>(_conn, null, nameof(Track), _storeOptions, _timeProvider));
-    public IReadOnlyObjectCollection<Track> Tracks => _tracks.Value;
+    IReadOnlyObjectCollection<Championship>? _championships;
+    public IReadOnlyObjectCollection<Championship> Championships => _championships ??= CreateCollection<Championship>();
+    IReadOnlyObjectCollection<Track>? _tracks;
+    public IReadOnlyObjectCollection<Track> Tracks => _tracks ??= CreateCollection<Track>();
 
     public Task<IObjectTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
         var transaction = _conn.BeginTransaction(IsolationLevel.Serializable);
-        return Task.FromResult<IObjectTransaction>(new DefaultObjectTransaction(_conn, transaction, _storeOptions, _timeProvider));
+        return Task.FromResult<IObjectTransaction>(new DefaultObjectTransaction(_conn, transaction, _collections.Value, _jsonOptions.Value, _timeProvider));
     }
+
+    DefaultObjectCollection<TEntity> CreateCollection<TEntity>() where TEntity : class
+        => new(_conn, null, _collections.Value, _jsonOptions.Value, _timeProvider);
 }

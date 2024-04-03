@@ -43,10 +43,11 @@ public class Program
             services.AddIdGen(1);
             services.AddHypermediaUriGenerator();
             services.AddSingleton<GenerateId>(sp => sp.GetRequiredService<IIdGenerator<long>>().CreateId);
-            services.AddObjectStore(opts => opts.UseInMemoryDb()
-                .Configure<Championship>(ConfigureCollection.Championships)
-                .Configure<Track>(ConfigureCollection.Tracks)
-                .ConfigureJson(opts => opts.Converters.Add(new DistanceJsonConverter())));
+            services.AddObjectStore()
+                .UseInMemoryDb()
+                .ConfigureCollection(opts => opts
+                    .ConfigureCollection<Championship>(ConfigureCollection.Championships)
+                    .ConfigureCollection<Track>(ConfigureCollection.Tracks));
 
             services.ConfigureOptions<ConfigureHttpJsonOptions>();
 
@@ -78,7 +79,7 @@ public class Program
             });
         }
     }
-    private class ConfigureHttpJsonOptions : IConfigureOptions<JsonOptions>
+    private class ConfigureHttpJsonOptions : IConfigureOptions<JsonOptions>, IConfigureOptions<ObjectStoreJsonOptions>
     {
         readonly FeatureRegistry _featureRegistry;
 
@@ -121,6 +122,15 @@ public class Program
             {
                 Modifiers = { IgnoreVersionedFields, IgnoreValidationPropertyNameFields }
             };
+        }
+
+        public void Configure(ObjectStoreJsonOptions opts)
+        {
+            opts.SerializerOptions.Converters.Add(new DistanceJsonConverter());
+            opts.SerializerOptions.Converters.Add(new FeatureCollectionJsonConverter(_featureRegistry));
+            opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureDriverData>(_featureRegistry, reg => reg.DriverData));
+            opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureTrackData>(_featureRegistry, reg => reg.TrackData));
+            opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureTeamData>(_featureRegistry, reg => reg.TeamData));
         }
     }
 

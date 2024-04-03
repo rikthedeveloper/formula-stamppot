@@ -6,23 +6,16 @@ namespace WebUI.Domain.ObjectStore;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddObjectStore(this IServiceCollection services)
-        => AddObjectStoreInternal(services, null);
-
-    public static IServiceCollection AddObjectStore(this IServiceCollection services, Action<ObjectStoreOptions> configure)
-        => AddObjectStoreInternal(services, configure);
-
-    static IServiceCollection AddObjectStoreInternal(IServiceCollection services, Action<ObjectStoreOptions>? configure)
+    public static ObjectStoreBuilder AddObjectStore(this IServiceCollection services)
     {
-        var opts = new ObjectStoreOptions(services);
-        configure?.Invoke(opts);
-        services.AddSingleton(opts);
         // Register the default in-memory SQLite provider when the provider is not configured
         services.TryAddSingleton<IDbConnectionProvider>(new ServiceProviderLifetimeDbConnectionProvider());
         services.TryAddSingleton(sp => sp.GetRequiredService<IDbConnectionProvider>().GetConnection());
         services.AddTransient<IObjectStore, DefaultObjectStore>();
         services.AddTransient<DataMigrator>();
         services.AddHostedService<DataMigrator>();
-        return services;
+        services.AddOptions<ObjectStoreCollectionOptions>();
+        services.AddOptions<ObjectStoreJsonOptions>();
+        return new ObjectStoreBuilder(services);
     }
 }

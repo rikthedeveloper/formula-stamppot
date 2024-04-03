@@ -20,10 +20,12 @@ public class ChampionshipResource(Championship championship, string version) : I
 public class ChampionshipChangeBody : IValidator
 {
     public string Name { get; init; } = string.Empty;
+    public FeatureCollection Features { get; init; } = new();
 
     public void Apply(Championship championship)
     {
         championship.Name = Name;
+        championship.Features = Features;
     }
 
     public IEnumerable<ValidationMessage> Validate()

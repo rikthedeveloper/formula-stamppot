@@ -24,14 +24,15 @@ static class DefaultCollectionFields
 public class DefaultObjectCollection<TEntity>(
     SqliteConnection _conn,
     SqliteTransaction? _transaction,
-    string _collection,
-    ObjectStoreOptions _storeOptions,
+    ObjectStoreCollectionOptions _collections,
+    ObjectStoreJsonOptions _jsonOptions,
     TimeProvider _timeProvider
     ) : IObjectCollection<TEntity>
     where TEntity : class
 {
     static readonly Compiler _compiler = new SqliteCompiler();
     readonly bool _isManagedConnection = _conn.State == ConnectionState.Closed;
+    readonly ObjectCollectionOptions _collection = _collections.Get<TEntity>();
 
     public async Task<IEnumerable<ObjectRecord<TEntity>>> ListAsync(CancellationToken cancellationToken = default)
         => await ListAsync([], cancellationToken);
@@ -50,7 +51,7 @@ public class DefaultObjectCollection<TEntity>(
     public async IAsyncEnumerable<ObjectRecord<TEntity>> StreamAsync(ISpecification[] specification, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var query = ApplySpecification(
-            new Query(_collection).Select(DefaultCollectionFields.AllColumns),
+            new Query(_collection.Name).Select(DefaultCollectionFields.AllColumns),
             specification);
 
         using var command = CreateCommand(_compiler.Compile(query), _conn, _transaction);
@@ -72,7 +73,7 @@ public class DefaultObjectCollection<TEntity>(
     public async Task<ObjectRecord<TEntity>?> FindAsync(ISpecification[] specification, CancellationToken cancellationToken = default)
     {
         var query = ApplySpecification(
-            new Query(_collection).Select(DefaultCollectionFields.AllColumns).Limit(1),
+            new Query(_collection.Name).Select(DefaultCollectionFields.AllColumns).Limit(1),
             specification);
 
         using var command = CreateCommand(_compiler.Compile(query), _conn, _transaction);
@@ -97,7 +98,7 @@ public class DefaultObjectCollection<TEntity>(
     public async Task<long> CountAsync(ISpecification[] specification, CancellationToken cancellationToken = default)
     {
         var query = ApplySpecification(
-            new Query(_collection).AsCount(),
+            new Query(_collection.Name).AsCount(),
             specification);
 
         using var command = CreateCommand(_compiler.Compile(query), _conn, _transaction);
@@ -123,7 +124,7 @@ public class DefaultObjectCollection<TEntity>(
 
     public async Task<int> InsertAsync(long key, TEntity entity, CancellationToken cancellationToken = default)
     {
-        var q = new Query(_collection)
+        var q = new Query(_collection.Name)
             .AsInsert(CreateFields());
 
         using var command = CreateCommand(_compiler.Compile(q), _conn, _transaction);
@@ -150,13 +151,9 @@ public class DefaultObjectCollection<TEntity>(
                 { DefaultCollectionFields.Version, version }
             };
 
-            var collectionOptions = _storeOptions.Collections.GetValueOrDefault(typeof(TEntity));
-            if (collectionOptions is not null)
+            foreach (var customField in _collection.CustomFields)
             {
-                foreach (var customField in collectionOptions.CustomFields)
-                {
-                    fields.Add(customField.FieldName, customField.GetValue(entity));
-                }
+                fields.Add(customField.FieldName, customField.GetValue(entity));
             }
 
             return fields;
@@ -166,7 +163,7 @@ public class DefaultObjectCollection<TEntity>(
     public async Task<int> UpdateAsync(ISpecification[] specification, TEntity entity, CancellationToken cancellationToken = default)
     {
         var query = ApplySpecification(
-            new Query(_collection).AsUpdate(CreateFields()).Limit(1),
+            new Query(_collection.Name).AsUpdate(CreateFields()).Limit(1),
             specification);
 
         using var command = CreateCommand(_compiler.Compile(query), _conn, _transaction);
@@ -192,13 +189,9 @@ public class DefaultObjectCollection<TEntity>(
                 { DefaultCollectionFields.Version, version }
             };
 
-            var collectionOptions = _storeOptions.Collections.GetValueOrDefault(typeof(TEntity));
-            if (collectionOptions is not null)
+            foreach (var customField in _collection.CustomFields)
             {
-                foreach (var customField in collectionOptions.CustomFields)
-                {
-                    fields.Add(customField.FieldName, customField.GetValue(entity));
-                }
+                fields.Add(customField.FieldName, customField.GetValue(entity));
             }
 
             return fields;
@@ -222,10 +215,10 @@ public class DefaultObjectCollection<TEntity>(
     }
 
     TEntity DeserializeEntity(string data)
-        => JsonSerializer.Deserialize<TEntity>(data, _storeOptions.JsonSerializerOptions) ?? throw new DataFormatIntegrityException();
+        => JsonSerializer.Deserialize<TEntity>(data, _jsonOptions.SerializerOptions) ?? throw new DataFormatIntegrityException();
 
     string SerializeEntity(TEntity entity)
-        => JsonSerializer.Serialize(entity, _storeOptions.JsonSerializerOptions);
+        => JsonSerializer.Serialize(entity, _jsonOptions.SerializerOptions);
 
     static SqliteCommand CreateCommand(SqlResult sqlResult, SqliteConnection connection, SqliteTransaction? transaction)
     {

@@ -7,7 +7,7 @@ namespace WebUI.JsonConverters;
 
 public class FeatureCollectionJsonConverter(FeatureRegistry featureRegistry) : JsonConverter<FeatureCollection>
 {
-    readonly IDictionary<string, Type> _featureTypesByName = featureRegistry.Registrations.ToDictionary(reg => reg.Key.Name, reg => reg.Key);
+    readonly IDictionary<string, Type> _featureTypesByName = featureRegistry.Registrations.ToDictionary(reg => reg.Key.Name.ToUpperInvariant(), reg => reg.Key);
     readonly IDictionary<Type, string> _featureNamesByType = featureRegistry.Registrations.ToDictionary(reg => reg.Key, reg => reg.Key.Name);
 
     public override FeatureCollection? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -22,8 +22,8 @@ public class FeatureCollectionJsonConverter(FeatureRegistry featureRegistry) : J
         while (reader.TokenType is JsonTokenType.PropertyName)
         {
             var propName = reader.GetString() ?? throw new Exception();
-            var featureType = _featureTypesByName[propName];
-            reader.Read(); //  // Reads to the StartObject token of the Feature.
+            var featureType = _featureTypesByName[propName.ToUpperInvariant()];
+            reader.Read(); // Reads to the StartObject token of the Feature.
             result.Add(featureType, (IFeature)(JsonSerializer.Deserialize(ref reader, featureType, options) ?? throw new Exception()));
         }
 
@@ -42,7 +42,7 @@ public class FeatureCollectionJsonConverter(FeatureRegistry featureRegistry) : J
         {
             var type = feature.GetType();
             var featureName = _featureNamesByType[type];
-            writer.WritePropertyName(featureName);
+            writer.WritePropertyName(options.PropertyNamingPolicy?.ConvertName(featureName) ?? featureName);
             writer.WriteRawValue(JsonSerializer.Serialize(feature, type, options));
         }
         writer.WriteEndObject();
