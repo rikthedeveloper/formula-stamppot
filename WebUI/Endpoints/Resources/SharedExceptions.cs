@@ -1,5 +1,4 @@
-﻿using System.Runtime.Serialization;
-using WebUI.Types;
+﻿using WebUI.Types;
 
 namespace WebUI.Endpoints.Resources;
 
@@ -31,4 +30,15 @@ public abstract class TrackException(ChampionshipId championshipId, TrackId trac
 public class InvalidTrackException(ChampionshipId championshipId, TrackId trackId) : TrackException(championshipId, trackId, _errorMessage, null)
 {
     const string _errorMessage = "The specified Track does not exist.";
+}
+
+public abstract class DriverException(ChampionshipId championshipId, DriverId driverId, string message, Exception? innerException) : ApplicationException(message, innerException)
+{
+    public ChampionshipId ChampionshipId { get; } = championshipId;
+    public DriverId DriverId { get; } = driverId;
+}
+
+public class InvalidDriverException(ChampionshipId championshipId, DriverId driverId) : DriverException(championshipId, driverId, _errorMessage, null)
+{
+    const string _errorMessage = "The specified Driver does not exist.";
 }

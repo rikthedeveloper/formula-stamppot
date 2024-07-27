@@ -8,16 +8,19 @@ public class FakeObjectStore : IObjectStore
 {
     public const string DefaultObjectVersion = "1";
 
-    public FakeObjectStore(IEnumerable<Championship>? championships = null, IEnumerable<Track>? tracks = null)
+    public FakeObjectStore(IEnumerable<Championship>? championships = null, IEnumerable<Track>? tracks = null, IEnumerable<Driver>? drivers = null)
     {
         Championships = new FakeObjectCollection<Championship>(ConvertToRecords(championships ?? []));
         Tracks = new FakeObjectCollection<Track>(ConvertToRecords(tracks ?? []));
+        Drivers = new FakeObjectCollection<Driver>(ConvertToRecords(drivers ?? []));
     }
 
-    public IObjectCollection<Championship> Championships { get; set; }
-    public IObjectCollection<Track> Tracks { get; set; }
     IReadOnlyObjectCollection<Championship> IObjectStore.Championships => Championships;
+    public IObjectCollection<Championship> Championships { get; set; }
     IReadOnlyObjectCollection<Track> IObjectStore.Tracks => Tracks;
+    public IObjectCollection<Track> Tracks { get; set; }
+    IReadOnlyObjectCollection<Driver> IObjectStore.Drivers => Drivers;
+    public IObjectCollection<Driver> Drivers { get; set; }
 
     public Task<IObjectTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
@@ -41,11 +44,13 @@ public class FakeTransaction : IObjectTransaction
 
     public IObjectCollection<Championship> Championships { get; private set; }
     public IObjectCollection<Track> Tracks { get; private set; }
+    public IObjectCollection<Driver> Drivers { get; private set; }
 
     public Task CommitAsync(CancellationToken cancellationToken = default)
     {
         _objectStore.Championships = new FakeObjectCollection<Championship>(Championships.ListAsync(cancellationToken).Result);
         _objectStore.Tracks = new FakeObjectCollection<Track>(Tracks.ListAsync(cancellationToken).Result);
+        _objectStore.Drivers = new FakeObjectCollection<Driver>(Drivers.ListAsync(cancellationToken).Result);
         return Task.CompletedTask;
     }
 
@@ -66,11 +71,12 @@ public class FakeTransaction : IObjectTransaction
         await Task.CompletedTask;
     }
 
-    [MemberNotNull(nameof(Championships)), MemberNotNull(nameof(Tracks))]
+    [MemberNotNull(nameof(Championships)), MemberNotNull(nameof(Tracks)), MemberNotNull(nameof(Drivers))]
     void Initialize()
     {
         Championships = new FakeObjectCollection<Championship>(_objectStore.Championships.ListAsync().Result);
         Tracks = new FakeObjectCollection<Track>(_objectStore.Tracks.ListAsync().Result);
+        Drivers = new FakeObjectCollection<Driver>(_objectStore.Drivers.ListAsync().Result);
     }
 }
 

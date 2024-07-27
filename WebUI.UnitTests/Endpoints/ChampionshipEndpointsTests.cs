@@ -15,7 +15,7 @@ public class ChampionshipEndpointsTests
     public async Task CreateChampionship_Returns_CreatedAtRouteResult()
     {
         // Arrange
-        var championshipChange = new ChampionshipChangeRequestBody { Name = "Test Championship" };
+        var championshipChange = new ChampionshipChangeRequestBody { Name = "Test Championship", Features = new([new FlatDriverSkillFeature(true)]) };
         var objectStore = new FakeObjectStore();
 
         // Act
@@ -24,7 +24,10 @@ public class ChampionshipEndpointsTests
         // Assert
         var createdAtRouteResult = result.Should().BeOfType<CreatedAtRoute<ChampionshipResource>>().Subject;
         createdAtRouteResult.RouteName.Should().Be(nameof(ChampionshipEndpoints.FindChampionshipById));
-        createdAtRouteResult.RouteValues.Should().ContainSingle().And.ContainValue(createdAtRouteResult.Value?.ChampionshipId.ToBase36String());
+        createdAtRouteResult.RouteValues.Should().ContainSingle()
+            .And.ContainValue(createdAtRouteResult.Value?.ChampionshipId.ToBase36String());
+        var resource = createdAtRouteResult.Value.Should().BeOfType<ChampionshipResource>().Subject;
+        resource.Features.Should().ContainSingle();
     }
 
     [Fact]
@@ -45,7 +48,7 @@ public class ChampionshipEndpointsTests
         var okResult = result.Should().BeOfType<Ok<ResourceCollection<ChampionshipResource>>>().Subject;
         var resourceCollection = okResult.Value.Should().BeOfType<ResourceCollection<ChampionshipResource>>().Subject;
         resourceCollection.Amount.Should().Be(championships.Length);
-        resourceCollection.Items.Count.Should().Be((int)resourceCollection.Amount);
+        resourceCollection.Items.Should().HaveCount((int)resourceCollection.Amount);
     }
 
     [Fact]

@@ -14,6 +14,8 @@ public class DefaultObjectStore(
     public IReadOnlyObjectCollection<Championship> Championships => _championships ??= CreateCollection<Championship>();
     IReadOnlyObjectCollection<Track>? _tracks;
     public IReadOnlyObjectCollection<Track> Tracks => _tracks ??= CreateCollection<Track>();
+    IReadOnlyObjectCollection<Driver>? _drivers;
+    public IReadOnlyObjectCollection<Driver> Drivers => _drivers ??= CreateCollection<Driver>();
 
     public Task<IObjectTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
