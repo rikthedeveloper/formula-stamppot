@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using FluentValidation;
+using FluentValidation.Results;
+using Microsoft.AspNetCore.Mvc;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints.Internal.Specifications;
@@ -17,7 +19,7 @@ public class ChampionshipResource(Championship championship, string version) : I
     public FeatureCollection Features { get; } = championship.Features;
 }
 
-public class ChampionshipChangeBody : IValidator
+public class ChampionshipChangeRequestBody : IValidator2
 {
     public string Name { get; init; } = string.Empty;
     public FeatureCollection Features { get; init; } = new();
@@ -28,10 +30,16 @@ public class ChampionshipChangeBody : IValidator
         championship.Features = Features;
     }
 
-    public IEnumerable<ValidationMessage> Validate()
+    static readonly Validator _validator = new();
+
+    public async Task<ValidationResult> ValidateAsync() => await _validator.ValidateAsync(this);
+
+    class Validator : AbstractValidator<ChampionshipChangeRequestBody>
     {
-        if (Name.Length is 0) yield return new RequiredValidationMessage(nameof(Name));
-        else if (Name.Length is < 3 or > 100) yield return new StringLengthValidationMessage(nameof(Name), 3, 100);
+        public Validator()
+        {
+             RuleFor(x => x.Name).NotEmpty().Length(3, 100);
+        }
     }
 }
 
@@ -48,7 +56,7 @@ public static class ChampionshipEndpoints
     }
 
     public static async Task<IResult> CreateChampionship(
-        ChampionshipChangeBody change,
+        ChampionshipChangeRequestBody change,
         [FromServices] IObjectStore objectStore,
         [FromServices] GenerateId generateId,
         CancellationToken cancellationToken = default)
@@ -87,7 +95,7 @@ public static class ChampionshipEndpoints
 
     public static async Task<IResult> UpdateChampionshipById(
         ChampionshipId championshipId,
-        [FromBody] ChampionshipChangeBody change,
+        [FromBody] ChampionshipChangeRequestBody change,
         [FromHeader(Name = "If-Match")] string version,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)

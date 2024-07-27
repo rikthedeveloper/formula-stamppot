@@ -27,7 +27,7 @@ public static class IEndpointsBuilderExtensions
         var api = endpoints.MapGroup("/")
             .AddEndpointFilter(exceptionFilter)
             .AddEndpointFilter(new RequirePreconditionFilter())
-            .AddEndpointFilterFactory(ValidationFilter.FilterFactory)
+            .AddEndpointFilterFactory(ValidationFilter2.FilterFactory)
             .AddHypermediaFilters();
 
         api.MapChampionships();

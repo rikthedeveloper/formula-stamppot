@@ -14,6 +14,7 @@ using WebUI.Filters;
 using WebUI.JsonConverters;
 using WebUI.Model.Hypermedia;
 using WebUI.Types;
+using EventId = WebUI.Types.EventId;
 
 namespace WebUI;
 
@@ -45,9 +46,7 @@ public class Program
             services.AddSingleton<GenerateId>(sp => sp.GetRequiredService<IIdGenerator<long>>().CreateId);
             services.AddObjectStore()
                 .UseInMemoryDb()
-                .ConfigureCollection(opts => opts
-                    .ConfigureCollection<Championship>(ConfigureCollection.Championships)
-                    .ConfigureCollection<Track>(ConfigureCollection.Tracks));
+                .ConfigureCollections(ConfigureCollection.ConfigureAll);
 
             services.ConfigureOptions<ConfigureHttpJsonOptions>();
 
@@ -69,24 +68,14 @@ public class Program
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
-            app.UseRouting();
 
-            app.Map("/api", api =>
-            {
-
-                api.UseRouting();
-                api.UseEndpoints(endpoints => endpoints.MapFormulaApi(Environment));
-            });
+            app.Map("/api",
+                api => api.UseRouting().UseEndpoints(endpoints => endpoints.MapFormulaApi(Environment)));
         }
     }
-    private class ConfigureHttpJsonOptions : IConfigureOptions<JsonOptions>, IConfigureOptions<ObjectStoreJsonOptions>
+    private class ConfigureHttpJsonOptions(FeatureRegistry featureRegistry) : IConfigureOptions<JsonOptions>, IConfigureOptions<ObjectStoreJsonOptions>
     {
-        readonly FeatureRegistry _featureRegistry;
-
-        public ConfigureHttpJsonOptions(FeatureRegistry featureRegistry)
-        {
-            _featureRegistry = featureRegistry;
-        }
+        readonly FeatureRegistry _featureRegistry = featureRegistry;
 
         public void Configure(JsonOptions opts)
         {
@@ -110,14 +99,23 @@ public class Program
 
             opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<ChampionshipId>("BASE36"));
             opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TrackId>("BASE36"));
-            opts.SerializerOptions.Converters.Add(new HypermediaJsonConverterFactory());
+            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TeamId>("BASE36"));
+            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<DriverId>("BASE36"));
+            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<EventId>("BASE36"));
+            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<SessionId>("BASE36"));
+
             opts.SerializerOptions.Converters.Add(new DistanceJsonConverter());
-            opts.SerializerOptions.Converters.Add(new ValidationMessagesJsonConverter());
-            opts.SerializerOptions.Converters.Add(new InputJsonConverterFactory());
+            opts.SerializerOptions.Converters.Add(new ColorJsonConverter());
+
             opts.SerializerOptions.Converters.Add(new FeatureCollectionJsonConverter(_featureRegistry));
             opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureDriverData>(_featureRegistry, reg => reg.DriverData));
             opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureTrackData>(_featureRegistry, reg => reg.TrackData));
             opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureTeamData>(_featureRegistry, reg => reg.TeamData));
+
+            opts.SerializerOptions.Converters.Add(new HypermediaJsonConverterFactory());
+            opts.SerializerOptions.Converters.Add(new ValidationMessagesJsonConverter());
+            opts.SerializerOptions.Converters.Add(new InputJsonConverterFactory());
+
             opts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
             {
                 Modifiers = { IgnoreVersionedFields, IgnoreValidationPropertyNameFields }
@@ -136,6 +134,16 @@ public class Program
 
     static class ConfigureCollection
     {
+        public static void ConfigureAll(ObjectStoreCollectionOptions options)
+        {
+            options.ConfigureCollection<Championship>(Championships);
+            options.ConfigureCollection<Track>(Tracks);
+            options.ConfigureCollection<Team>(Teams);
+            options.ConfigureCollection<Driver>(Drivers);
+            options.ConfigureCollection<Event>(Events);
+            options.ConfigureCollection<Session>(Sessions);
+        }
+
         public static void Championships(ObjectCollectionOptions<Championship> options)
         {
             options.AddKey(nameof(Championship.ChampionshipId), c => c.ChampionshipId.Value);
@@ -145,6 +153,31 @@ public class Program
         {
             options.AddKey(nameof(Track.ChampionshipId), t => t.ChampionshipId.Value);
             options.AddKey(nameof(Track.TrackId), t => t.TrackId.Value);
+        }
+
+        public static void Teams(ObjectCollectionOptions<Team> options)
+        {
+            options.AddKey(nameof(Team.ChampionshipId), t => t.ChampionshipId.Value);
+            options.AddKey(nameof(Team.TeamId), t => t.TeamId.Value);
+        }
+
+        public static void Drivers(ObjectCollectionOptions<Driver> options)
+        {
+            options.AddKey(nameof(Driver.ChampionshipId), t => t.ChampionshipId.Value);
+            options.AddKey(nameof(Driver.DriverId), t => t.DriverId.Value);
+        }
+
+        public static void Events(ObjectCollectionOptions<Event> options)
+        {
+            options.AddKey(nameof(Event.ChampionshipId), t => t.ChampionshipId.Value);
+            options.AddKey(nameof(Event.EventId), t => t.EventId.Value);
+        }
+
+        public static void Sessions(ObjectCollectionOptions<Session> options)
+        {
+            options.AddKey(nameof(Session.ChampionshipId), t => t.ChampionshipId.Value);
+            options.AddKey(nameof(Session.EventId), t => t.EventId.Value);
+            options.AddKey(nameof(Session.SessionId), t => t.SessionId.Value);
         }
     }
 }

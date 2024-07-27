@@ -24,7 +24,7 @@ public class ObjectStoreBuilder(IServiceCollection services)
         return this;
     }
 
-    public ObjectStoreBuilder ConfigureCollection(Action<ObjectStoreCollectionOptions> configure)
+    public ObjectStoreBuilder ConfigureCollections(Action<ObjectStoreCollectionOptions> configure)
     {
         _services.Configure(configure);
         return this;

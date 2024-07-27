@@ -3,13 +3,12 @@ using WebUI.Types;
 
 namespace WebUI.Domain;
 
-//public class Event
-//{
-//    public ChampionshipId ChampionshipId { get; }
-//    public SeasonId SeasonId { get; }
-//    public EventId EventId { get; }
+public class Event(ChampionshipId championshipId, Types.EventId eventId)
+{
+    public ChampionshipId ChampionshipId { get; } = championshipId;
+    public Types.EventId EventId { get; } = eventId;
 
-//    public TrackId TrackId { get; }
+    public TrackId TrackId { get; set; }
 
-//    public ImmutableArray<SessionId> Schedule { get; set; }
-//}
+    public ImmutableArray<SessionId> Schedule { get; set; }
+}
