@@ -122,7 +122,7 @@ public class DefaultObjectCollection<TEntity>(
     public async Task<bool> ExistsAsync(CancellationToken cancellationToken = default) => await CountAsync([], cancellationToken) > 0;
     public async Task<bool> ExistsAsync(ISpecification[] specification, CancellationToken cancellationToken = default) => await CountAsync(specification, cancellationToken) > 0;
 
-    public async Task<int> InsertAsync(long key, TEntity entity, CancellationToken cancellationToken = default)
+    public async Task<int> InsertAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         var q = new Query(_collection.Name)
             .AsInsert(CreateFields());

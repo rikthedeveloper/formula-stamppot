@@ -31,7 +31,6 @@ public class ChampionshipChangeRequestBody : IValidator2
     }
 
     static readonly Validator _validator = new();
-
     public async Task<ValidationResult> ValidateAsync() => await _validator.ValidateAsync(this);
 
     class Validator : AbstractValidator<ChampionshipChangeRequestBody>
@@ -66,7 +65,7 @@ public static class ChampionshipEndpoints
         change.Apply(championship);
 
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
-        await transaction.Championships.InsertAsync(championship.ChampionshipId, championship, cancellationToken);
+        await transaction.Championships.InsertAsync(championship, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         var createdChampionship = await objectStore.Championships.FindAsync([new ChampionshipIdSpecification(newId)], cancellationToken) ?? throw new InvalidChampionshipException(newId);

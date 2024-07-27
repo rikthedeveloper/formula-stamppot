@@ -133,7 +133,7 @@ public class FakeObjectCollection<T> : IObjectCollection<T> where T : class
         return Task.FromResult((long)_records.Count);
     }
 
-    public Task<int> InsertAsync(long key, T model, CancellationToken cancellationToken = default)
+    public Task<int> InsertAsync(T model, CancellationToken cancellationToken = default)
     {
         _records.Add(new ObjectRecord<T>(model, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, new ObjectVersion(FakeObjectStore.DefaultObjectVersion)));
         return Task.FromResult(1);

@@ -81,7 +81,7 @@ public static class TrackEndpoints
         change.Apply(track);
 
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
-        await transaction.Tracks.InsertAsync(track.ChampionshipId, track, cancellationToken);
+        await transaction.Tracks.InsertAsync(track, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         var createdTrack = await objectStore.Tracks.FindAsync([new TrackIdSpecification(championshipId, trackId)], cancellationToken) ?? throw new InvalidTrackException(championshipId, trackId);
