@@ -15,32 +15,29 @@ public record class HypermediaTypeOptions(Type FactoryType);
 
 public class HypermediaOptions
 {
-    readonly Dictionary<Type, HypermediaTypeOptions> _options;
+    readonly Dictionary<Type, HypermediaTypeOptions> resourceOptions = [];
     readonly string _canonicalContentType = "application/vnd.lss.hyp+json";
     readonly string[] _additionalMatchingContentTypes = ["application/json"];
-
-    public HypermediaOptions()
-    {
-        _options = new()
-        {
-            { typeof(ChampionshipResource), new HypermediaTypeOptions(typeof(ChampionshipHypermediaFactory)) },
-            { typeof(ResourceCollection<ChampionshipResource>), new HypermediaTypeOptions(typeof(ChampionshipsCollectionHypermediaFactory)) },
-            { typeof(TrackResource), new HypermediaTypeOptions(typeof(TrackHypermediaFactory)) },
-            { typeof(TrackResourceCollection), new HypermediaTypeOptions(typeof(TracksCollectionHypermediaFactory)) }
-        };
-    }
 
     public string CanonicalMediaType => _canonicalContentType;
     public string[] AdditionalMatchingMediaTypes => _additionalMatchingContentTypes;
 
     public HypermediaTypeOptions? GetOptions(Type resultType)
-        => _options.TryGetValue(resultType, out var typeOptions) ? typeOptions : null;
+        => resourceOptions.TryGetValue(resultType, out var typeOptions) ? typeOptions : null;
+
+    public HypermediaOptions AddResource<TFactory, TResource>() 
+        where TFactory : HypermediaResourceFactory
+        where TResource : class
+    {
+        resourceOptions.Add(typeof(TResource), new HypermediaTypeOptions(typeof(TFactory)));
+        return this;
+    }
 }
 
 public static class HypermediaFilterFactory
 {
-    public static TBuilder AddHypermediaFilters<TBuilder>(this TBuilder builder) where TBuilder : IEndpointConventionBuilder
-        => builder.AddEndpointFilter(HypermediaContentTypeFilter).AddEndpointFilterFactory(HypermediaEnricherFilterFactory);
+    public static TBuilder AddHypermediaFilters<TBuilder>(this TBuilder builder, HypermediaOptions options) where TBuilder : IEndpointConventionBuilder
+        => builder.AddEndpointFilter(HypermediaContentTypeFilter).AddEndpointFilterFactory((ctx, next) => HypermediaEnricherFilterFactory(ctx, next, options));
 
     static async ValueTask<object?> HypermediaContentTypeFilter(EndpointFilterInvocationContext invocationContext, EndpointFilterDelegate next)
     {
@@ -52,9 +49,8 @@ public static class HypermediaFilterFactory
         return result;
     }
 
-    static EndpointFilterDelegate HypermediaEnricherFilterFactory(EndpointFilterFactoryContext filterFactoryContext, EndpointFilterDelegate next)
+    static EndpointFilterDelegate HypermediaEnricherFilterFactory(EndpointFilterFactoryContext filterFactoryContext, EndpointFilterDelegate next, HypermediaOptions options)
     {
-        var options = new HypermediaOptions();
         var returnParameterType = filterFactoryContext.MethodInfo.ReturnParameter.ParameterType;
         if (returnParameterType == typeof(void) || returnParameterType == typeof(Task))
         {

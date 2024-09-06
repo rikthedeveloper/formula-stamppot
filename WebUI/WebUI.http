@@ -56,3 +56,17 @@ GET {{WebUI_HostAddress}}/championships/{{championshipId}}/tracks
 
 # @name FindTrack
 GET {{WebUI_HostAddress}}/championships/{{championshipId}}/tracks/{{trackId}}
+
+###
+
+POST {{WebUI_HostAddress}}/championships/{{championshipId}}/drivers
+Content-Type: application/json
+
+{
+  "name": [{ "name": "Max" }, { "name": "Verstappen", "hasEmphasis": true }],
+  "data": {
+    "flatDriverSkillFeature": {
+      "skill": 5
+    }
+  }
+}

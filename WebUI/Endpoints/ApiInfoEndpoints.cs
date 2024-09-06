@@ -3,22 +3,28 @@ using WebUI.Model;
 
 namespace WebUI.Endpoints;
 
+public class ApiInfoResource
+{
+    public required string Name { get; init; }
+    public required Version Version { get; init; }
+}
+
 public static class ApiInfoEndpoints
 {
     public static RouteGroupBuilder MapApi(this IEndpointRouteBuilder endpoints, [StringSyntax("Route")] string prefix)
     {
-        var groupBuilder = endpoints.MapGroup(prefix);
+        var groupBuilder = endpoints.MapGroup(prefix).WithTags("API");
         groupBuilder.MapGet("/", GetApiInfo)
             .WithName(nameof(GetApiInfo));
         return groupBuilder;
     }
 
-    public static ApiInfoDto GetApiInfo()
+    public static IResult GetApiInfo()
     {
-        return new ApiInfoDto
+        return Results.Ok(new ApiInfoResource
         {
             Name = "Formula Stamppot",
             Version = new(0, 1)
-        };
+        });
     }
 }

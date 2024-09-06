@@ -10,5 +10,5 @@ public class Event(ChampionshipId championshipId, Types.EventId eventId)
 
     public TrackId TrackId { get; set; }
 
-    public ImmutableArray<SessionId> Schedule { get; set; }
+    public ImmutableArray<SessionId> Schedule { get; set; } = [];
 }

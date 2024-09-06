@@ -22,18 +22,20 @@ public class DriverResource(Driver driver, string version) : IVersioned
     public ChampionshipId ChampionshipId { get; } = driver.ChampionshipId;
     public DriverId DriverId { get; } = driver.DriverId;
     public ImmutableArray<NameToken> Name { get; } = driver.Name;
+    public FeatureDataCollection<IFeatureDriverData> Data { get; } = driver.Data;
+
     public string Version { get; } = version;
 }
 
 public class DriverChangeBody : IValidator2
 {
     public ImmutableArray<NameToken> Name { get; init; } = [];
-    public FeatureDataCollection<IFeatureDriverData> FeatureData { get; } = new();
+    public FeatureDataCollection<IFeatureDriverData> Data { get; init; } = new();
 
     public void Apply(Driver driver)
     {
         driver.Name = Name;
-        driver.Data = FeatureData;
+        driver.Data = Data;
     }
 
     static readonly Validator _validator = new();
@@ -52,7 +54,7 @@ public static class DriverEndpoints
 {
     public static RouteGroupBuilder MapDrivers(this IEndpointRouteBuilder endpoints)
     {
-        var groupBuilder = endpoints.MapGroup("championships/{championshipId}/drivers");
+        var groupBuilder = endpoints.MapGroup("championships/{championshipId}/drivers").WithTags("Drivers");
         groupBuilder.MapGet("/", ListDrivers).WithName(nameof(ListDrivers));
         groupBuilder.MapPost("/", CreateDriver).WithName(nameof(CreateDriver));
         groupBuilder.MapGet("/{driverId}", FindDriverById).WithName(nameof(FindDriverById));

@@ -46,7 +46,7 @@ public static class ChampionshipEndpoints
 {
     public static RouteGroupBuilder MapChampionships(this IEndpointRouteBuilder endpoints)
     {
-        var groupBuilder = endpoints.MapGroup("championships");
+        var groupBuilder = endpoints.MapGroup("championships").WithTags("Championships");
         groupBuilder.MapGet("/", ListChampionships).WithName(nameof(ListChampionships));
         groupBuilder.MapPost("/", CreateChampionship).WithName(nameof(CreateChampionship));
         groupBuilder.MapGet("/{championshipId}", FindChampionshipById).WithName(nameof(FindChampionshipById));

@@ -56,7 +56,7 @@ public class DriverEndpointsTests
     public async Task FindDriverById_Returns_OkResult_With_DriverResource()
     {
         // Arrange
-        var driver = Some.Driver.ThatIsValid().WithId(driverId);
+        var driver = Some.Driver.ThatIsValid().WithDriverId(driverId);
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()], [], [driver]);
 
         // Act
@@ -72,7 +72,7 @@ public class DriverEndpointsTests
     public async Task UpdateDriverById_Returns_OkResult_With_DriverResource()
     {
         // Arrange
-        var driver = Some.Driver.ThatIsValid().WithId(driverId);
+        var driver = Some.Driver.ThatIsValid().WithDriverId(driverId);
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()], [], [driver]);
         var driverChange = SomeDriverChange;
 

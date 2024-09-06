@@ -1,4 +1,5 @@
 ﻿using WebUI.Types;
+using EventId = WebUI.Types.EventId;
 
 namespace WebUI.Endpoints.Resources;
 
@@ -41,4 +42,27 @@ public abstract class DriverException(ChampionshipId championshipId, DriverId dr
 public class InvalidDriverException(ChampionshipId championshipId, DriverId driverId) : DriverException(championshipId, driverId, _errorMessage, null)
 {
     const string _errorMessage = "The specified Driver does not exist.";
+}
+
+public abstract class EventException(ChampionshipId championshipId, EventId eventId, string message, Exception? innerException) : ApplicationException(message, innerException)
+{
+    public ChampionshipId ChampionshipId { get; } = championshipId;
+    public EventId EventId { get; } = eventId;
+}
+
+public class InvalidEventException(ChampionshipId championshipId, EventId eventId) : EventException(championshipId, eventId, _errorMessage, null)
+{
+    const string _errorMessage = "The specified Event does not exist.";
+}
+
+public abstract class SessionException(ChampionshipId championshipId, EventId eventId, SessionId sessionId, string message, Exception? innerException) : ApplicationException(message, innerException)
+{
+    public ChampionshipId ChampionshipId { get; } = championshipId;
+    public EventId EventId{ get; } = eventId;
+    public SessionId SessionId { get; } = sessionId;
+}
+
+public class InvalidSessionException(ChampionshipId championshipId, EventId eventId, SessionId sessionId) : SessionException(championshipId, eventId, sessionId, _errorMessage, null)
+{
+    const string _errorMessage = "The specified Session does not exist.";
 }

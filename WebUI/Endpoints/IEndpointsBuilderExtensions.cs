@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using WebUI.Endpoints.Resources;
+using WebUI.Endpoints.Resources.Hypermedia;
 using WebUI.Filters;
 
 namespace WebUI.Endpoints;
@@ -24,13 +25,28 @@ public static class IEndpointsBuilderExtensions
             .AddProblemInfoFactory<OptimisticConcurrencyException>(ex => new(HttpStatusCode.PreconditionFailed, ex.Message, null))
             .AddProblemInfoFactory<InvalidChampionshipException>(ex => new(HttpStatusCode.NotFound, ex.Message, new { ex.ChampionshipId }));
 
+        var hypermediaOptions = new HypermediaOptions()
+            .AddResource<ApiInfoHypermediaFactory, ApiInfoResource>()
+            .AddResource<ChampionshipHypermediaFactory, ChampionshipResource>()
+            .AddResource<ChampionshipsCollectionHypermediaFactory, ResourceCollection<ChampionshipResource>>()
+            .AddResource<TrackHypermediaFactory, TrackResource>()
+            .AddResource<TracksCollectionHypermediaFactory, TrackResourceCollection>()
+            .AddResource<DriverHypermediaFactory, DriverResource>()
+            .AddResource<DriversCollectionHypermediaFactory, DriverResourceCollection>()
+            .AddResource<EventHypermediaFactory, EventResource>()
+            .AddResource<EventsCollectionHypermediaFactory, EventResourceCollection>();
+
         var api = endpoints.MapGroup("/")
             .AddEndpointFilter(exceptionFilter)
             .AddEndpointFilter(new RequirePreconditionFilter())
-            .AddEndpointFilterFactory(ValidationFilter2.FilterFactory)
-            .AddHypermediaFilters();
+            .AddEndpointFilterFactory(ValidationFilter.FilterFactory)
+            .AddHypermediaFilters(hypermediaOptions);
 
+        api.MapApi("/");
         api.MapChampionships();
         api.MapTracks();
+        api.MapDrivers();
+        api.MapEvents();
+        api.MapSessions();
     }
 }

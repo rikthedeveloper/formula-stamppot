@@ -52,6 +52,8 @@ public class Program
 
             services.ConfigureFeatures()
                 .Register<FlatDriverSkillFeature>();
+
+            services.AddEndpointsApiExplorer().AddSwaggerGen();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -67,10 +69,16 @@ public class Program
             }
 
             app.UseHttpsRedirection();
-            app.UseStaticFiles();
+            //app.UseStaticFiles();
 
-            app.Map("/api",
-                api => api.UseRouting().UseEndpoints(endpoints => endpoints.MapFormulaApi(Environment)));
+            app.Map("/api", api =>
+            {
+                api.UseSwagger();
+                api.UseSwaggerUI(configure => configure.RoutePrefix = "swagger");
+                api.UseReDoc(configure => configure.RoutePrefix = "redoc");
+
+                api.UseRouting().UseEndpoints(endpoints => endpoints.MapFormulaApi(Environment));
+            });
         }
     }
     private class ConfigureHttpJsonOptions(FeatureRegistry featureRegistry) : IConfigureOptions<JsonOptions>, IConfigureOptions<ObjectStoreJsonOptions>
@@ -114,7 +122,6 @@ public class Program
 
             opts.SerializerOptions.Converters.Add(new HypermediaJsonConverterFactory());
             opts.SerializerOptions.Converters.Add(new ValidationMessagesJsonConverter());
-            opts.SerializerOptions.Converters.Add(new InputJsonConverterFactory());
 
             opts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
             {

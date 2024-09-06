@@ -1,3 +1,7 @@
-﻿namespace WebUI.Types;
+﻿using System.Text.Json.Serialization;
 
-public readonly record struct NameToken(string Name, bool HasEmphasis = false);
+namespace WebUI.Types;
+
+public readonly record struct NameToken(
+    string Name, 
+    [property:JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool HasEmphasis = false);

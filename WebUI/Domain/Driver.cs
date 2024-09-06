@@ -8,7 +8,7 @@ public class Driver(ChampionshipId championshipId, DriverId driverId)
     public ChampionshipId ChampionshipId { get; } = championshipId;
     public DriverId DriverId { get; } = driverId;
 
-    public ImmutableArray<NameToken> Name { get; set; }
+    public ImmutableArray<NameToken> Name { get; set; } = [];
     public string Abbreviation { get; set; } = string.Empty;
     public string Number { get; set; } = string.Empty;
 

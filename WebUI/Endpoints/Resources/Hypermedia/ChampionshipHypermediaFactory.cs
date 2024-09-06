@@ -12,6 +12,8 @@ public class ChampionshipHypermediaFactory(GenerateHypermediaUri generateHyperme
     protected override IEnumerable<KeyValuePair<string, Hyperlink>> GetLinks(ChampionshipResource resource)
     {
         yield return new("tracks", Hyperlink(nameof(TrackEndpoints.ListTracks), resource));
+        yield return new("drivers", Hyperlink(nameof(DriverEndpoints.ListDrivers), resource));
+        yield return new("events", Hyperlink(nameof(EventEndpoints.ListEvents), resource));
     }
 
     protected override IEnumerable<KeyValuePair<string, Model.Hypermedia.Action>> GetActions(ChampionshipResource resource)

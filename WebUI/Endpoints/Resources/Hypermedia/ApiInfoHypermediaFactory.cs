@@ -3,8 +3,13 @@ using WebUI.Model.Hypermedia;
 
 namespace WebUI.Endpoints.Resources.Hypermedia;
 
-public class ApiInfoHypermediaFactory(HttpContext httpContext, LinkGenerator linkGenerator) : HypermediaResourceFactory<ApiInfoDto>
+public class ApiInfoHypermediaFactory(GenerateHypermediaUri generateHypermediaUri) : HypermediaResourceFactory<ApiInfoResource>
 {
-    protected override Hyperlink GetCanonicalSelf(ApiInfoDto resource)
-        => new(linkGenerator.GetUriByRouteValues(httpContext, nameof(ApiInfoEndpoints.GetApiInfo)) ?? throw new NullReferenceException());
+    protected override Hyperlink GetCanonicalSelf(ApiInfoResource resource)
+        => new(generateHypermediaUri(nameof(ApiInfoEndpoints.GetApiInfo)));
+
+    protected override IEnumerable<KeyValuePair<string, Hyperlink>> GetLinks(ApiInfoResource resource)
+    {
+        yield return new("championships", new(generateHypermediaUri(nameof(ChampionshipEndpoints.ListChampionships))));
+    }
 }

@@ -17,6 +17,10 @@ public class DefaultObjectTransaction(
     public IObjectCollection<Track> Tracks => _tracks ??= CreateCollection<Track>();
     IObjectCollection<Driver>? _drivers;
     public IObjectCollection<Driver> Drivers => _drivers ??= CreateCollection<Driver>();
+    IObjectCollection<Event>? _events;
+    public IObjectCollection<Event> Events => _events ??= CreateCollection<Event>();
+    IObjectCollection<Session>? _sessions;
+    public IObjectCollection<Session> Sessions => _sessions ??= CreateCollection<Session>();
 
     public async Task CommitAsync(CancellationToken cancellationToken)
     {

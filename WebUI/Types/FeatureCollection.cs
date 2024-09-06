@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Immutable;
+using WebUI.Domain;
 
 namespace WebUI.Types;
 
@@ -10,7 +11,10 @@ namespace WebUI.Types;
 public interface IFeature
 {
     bool Enabled { get; }
+    FeatureResult Apply(Session session, SessionParticipant participant, LapResult? previousLap, Random random);
 }
+
+public record class FeatureResult(TimeSpan Result);
 
 public interface IFeatureWithDriverData : IFeature
 {
@@ -25,7 +29,10 @@ public interface IFeatureWithTrackData : IFeature
     static abstract Type? TrackDataType { get; }
 }
 
-public abstract record class FeatureBase(bool Enabled) : IFeature;
+public abstract record class FeatureBase(bool Enabled) : IFeature 
+{
+    public abstract FeatureResult Apply(Session session, SessionParticipant participant, LapResult? previousLap, Random random);
+}
 
 public interface IFeatureData { }
 public interface IFeatureDriverData : IFeatureData { }
@@ -70,6 +77,13 @@ public class FeatureCollection : IEnumerable<IFeature>
         return new(_features.Add(type, feature));
     }
 
+    public IEnumerable<FeatureResult> Apply(Session session, SessionParticipant participant, LapResult? previousLap, Random random)
+    {
+        foreach (var feature in this)
+            if (feature.Enabled)
+                yield return feature.Apply(session, participant, previousLap, random);
+    }
+
     public IEnumerator<IFeature> GetEnumerator() => _features.Values.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
@@ -81,6 +95,11 @@ public class FeatureDataCollection<TFeatureData> : IEnumerable<TFeatureData>
 
     public FeatureDataCollection()
         : this(ImmutableDictionary.Create<Type, TFeatureData>())
+    {
+    }
+
+    public FeatureDataCollection(IEnumerable<TFeatureData> data)
+        : this(data.ToImmutableDictionary(data => data.GetType()))
     {
     }
 

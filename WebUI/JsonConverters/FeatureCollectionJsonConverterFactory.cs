@@ -56,7 +56,7 @@ public class FeatureDataCollectionJsonConverter<TFeatureData>(
 {
     readonly IDictionary<string, Type> _dataTypesByName = featureRegistry.Registrations
         .Where(reg => dataTypePredicate(reg.Value) != null)
-        .ToDictionary(reg => reg.Key.Name, reg => dataTypePredicate(reg.Value)!);
+        .ToDictionary(reg => reg.Key.Name.ToUpperInvariant(), reg => dataTypePredicate(reg.Value)!);
 
     readonly IDictionary<Type, string> _dataNamesByType = featureRegistry.Registrations
         .Where(reg => dataTypePredicate(reg.Value) != null)
@@ -74,7 +74,7 @@ public class FeatureDataCollectionJsonConverter<TFeatureData>(
         while (reader.TokenType is JsonTokenType.PropertyName)
         {
             var propName = reader.GetString() ?? throw new Exception();
-            var featureType = _dataTypesByName[propName];
+            var featureType = _dataTypesByName[propName.ToUpperInvariant()];
             reader.Read(); //  // Reads to the StartObject token of the Feature.
             result.Add(featureType, (TFeatureData)(JsonSerializer.Deserialize(ref reader, featureType, options) ?? throw new Exception()));
         }
@@ -94,7 +94,7 @@ public class FeatureDataCollectionJsonConverter<TFeatureData>(
         {
             var type = feature.GetType();
             var featureName = _dataNamesByType[type];
-            writer.WritePropertyName(featureName);
+            writer.WritePropertyName(options.PropertyNamingPolicy?.ConvertName(featureName) ?? featureName);
             writer.WriteRawValue(JsonSerializer.Serialize(feature, type, options));
         }
         writer.WriteEndObject();

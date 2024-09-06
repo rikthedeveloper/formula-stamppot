@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
+﻿using FluentValidation;
+using FluentValidation.Results;
+using Microsoft.AspNetCore.Mvc;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints.Internal.Specifications;
@@ -26,10 +27,10 @@ public class TrackResource(Track track, string version) : IVersioned
     public string Version { get; } = version;
 }
 
-public class TrackChangeBody
+public class TrackChangeBody : IValidator2
 {
     public string Name { get; init; } = string.Empty;
-    public Field<Distance> Length { get; init; } = Distance.Zero;
+    public Distance Length { get; init; } = Distance.Zero;
     public string City { get; init; } = string.Empty;
     public string Country { get; init; } = string.Empty;
 
@@ -41,14 +42,15 @@ public class TrackChangeBody
         track.Country = Country;
     }
 
-    public IEnumerable<ValidationMessage> Validate()
+    public async Task<ValidationResult> ValidateAsync() => await new TrackChangeBodyValidator().ValidateAsync(this);
+    class TrackChangeBodyValidator : AbstractValidator<TrackChangeBody>
     {
-        if (Name.Length is 0) yield return new RequiredValidationMessage(nameof(Name));
-        else if (Name.Length is < 3 or > 100) yield return new StringLengthValidationMessage(nameof(Name), 3, 100);
-        if (City.Length is 0) yield return new RequiredValidationMessage(nameof(City));
-        else if (City.Length is < 3 or > 100) yield return new StringLengthValidationMessage(nameof(City), 3, 100);
-        if (Country.Length is 0) yield return new RequiredValidationMessage(nameof(Country));
-        else if (Country.Length is < 3 or > 100) yield return new StringLengthValidationMessage(nameof(Country), 3, 100);
+        public TrackChangeBodyValidator()
+        {
+            RuleFor(t => t.Name).NotEmpty().Length(3, 100);
+            RuleFor(t => t.City).NotEmpty().Length(3, 100);
+            RuleFor(t => t.Country).NotEmpty().Length(3, 100);
+        }
     }
 }
 
@@ -56,7 +58,7 @@ public static class TrackEndpoints
 {
     public static RouteGroupBuilder MapTracks(this IEndpointRouteBuilder endpoints)
     {
-        var groupBuilder = endpoints.MapGroup("championships/{championshipId}/tracks");
+        var groupBuilder = endpoints.MapGroup("championships/{championshipId}/tracks").WithTags("Tracks");
         groupBuilder.MapGet("/", ListTracks).WithName(nameof(ListTracks));
         groupBuilder.MapPost("/", CreateTrack).WithName(nameof(CreateTrack));
         groupBuilder.MapGet("/{trackId}", FindTrackById).WithName(nameof(FindTrackById));

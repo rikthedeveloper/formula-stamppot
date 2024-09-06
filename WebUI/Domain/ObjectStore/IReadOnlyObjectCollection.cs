@@ -30,8 +30,6 @@ public interface ISpecification
     Query Apply(Query query);
 }
 
-
-
 public interface IReadOnlyObjectCollection<TEntity> 
     where TEntity : class
 {

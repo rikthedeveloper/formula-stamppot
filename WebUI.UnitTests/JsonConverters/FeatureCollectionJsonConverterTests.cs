@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using System.Text.Json;
 using WebUI.Configuration;
+using WebUI.Domain;
 using WebUI.JsonConverters;
 using WebUI.Types;
 
@@ -8,7 +9,10 @@ namespace WebUI.UnitTests.JsonConverters;
 
 public class FeatureCollectionJsonConverterTests
 {
-    record class TestFeature(bool Enabled, TimeSpan Gain) : FeatureBase(Enabled);
+    record class TestFeature(bool Enabled, TimeSpan Gain) : FeatureBase(Enabled)
+    {
+        public override FeatureResult Apply(Session session, SessionParticipant participant, LapResult? previousLap, Random random) => throw new NotImplementedException();
+    }
 
     [Fact]
     public void CanSerializeAndDeserializeFeatureCollection()
