@@ -10,10 +10,6 @@ using WebUI.UnitTests.Fakes;
 namespace WebUI.UnitTests.Endpoints;
 public class SessionEndpointTests
 {
-    readonly ChampionshipId _championshipId = new(IdGeneratorHelper.GenerateId());
-    readonly EventId _eventId = new(IdGeneratorHelper.GenerateId());
-    readonly SessionId _sessionId = new(IdGeneratorHelper.GenerateId());
-
     static SessionChangeBody SomeSessionChange => new() { Name = new("SessionEndpointTests"), LapCount = 3 };
     readonly string versionEtag = EndpointTestsHelpers.WrapEtag(FakeObjectStore.DefaultObjectVersion);
 
@@ -28,7 +24,7 @@ public class SessionEndpointTests
         var sessionChange = SomeSessionChange;
 
         // Act
-        var result = await SessionEndpoints.CreateSession(_championshipId, _eventId, sessionChange, objectStore, IdGeneratorHelper.GenerateId);
+        var result = await SessionEndpoints.CreateSession(new(1), new(1), sessionChange, objectStore, IdGeneratorHelper.GenerateId);
 
         // Assert
         var createdAtRouteResult = result.Should().BeOfType<CreatedAtRoute<SessionResource>>().Subject;
@@ -45,11 +41,11 @@ public class SessionEndpointTests
         };
 
         var objectStore = new FakeObjectStore(
-            events: [Some.Event.ThatIsValid().WithChampionshipId(_championshipId).WithEventId(_eventId)],
+            events: [Some.Event.ThatIsValid()],
             sessions: sessions);
 
         // Act
-        var result = await SessionEndpoints.ListSessions(_championshipId, _eventId, objectStore);
+        var result = await SessionEndpoints.ListSessions(new(1), new(1), objectStore);
 
         // Assert
         var resourceCollection = result.Should().BeOfType<Ok<SessionResourceCollection>>()
@@ -61,35 +57,35 @@ public class SessionEndpointTests
     public async Task FindSessionById_Returns_OkResult_With_SessionResource()
     {
         // Arrange
-        var session = Some.Session.ThatIsValid().WithSessionId(_sessionId);
+        var session = Some.Session.ThatIsValid();
         var objectStore = new FakeObjectStore(
             championships: [Some.Championship.ThatIsValid()],
             sessions: [session]);
 
         // Act
-        var result = await SessionEndpoints.FindSessionById(_championshipId, _eventId, _sessionId, objectStore);
+        var result = await SessionEndpoints.FindSessionById(new(1), new(1), new(1), objectStore);
 
         // Assert
         var sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
-        sessionResource.SessionId.Should().Be(_sessionId);
+        sessionResource.SessionId.Should().Be(new SessionId(1));
     }
     [Fact]
     public async Task UpdateSessionById_Returns_OkResult_With_SessionResource()
     {
         // Arrange
-        var session = Some.Session.ThatIsValid().WithSessionId(_sessionId);
+        var session = Some.Session.ThatIsValid();
         var objectStore = new FakeObjectStore(
             championships: [Some.Championship.ThatIsValid()],
             sessions: [session]);
 
         // Act
-        var result = await SessionEndpoints.UpdateSessionById(_championshipId, _eventId, _sessionId, SomeSessionChange, versionEtag, objectStore);
+        var result = await SessionEndpoints.UpdateSessionById(new(1), new(1), new(1), SomeSessionChange, versionEtag, objectStore);
 
         // Assert
         var sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
-        sessionResource.SessionId.Should().Be(_sessionId);
+        sessionResource.SessionId.Should().Be(new SessionId(1));
         sessionResource.Name.Should().Be(SomeSessionChange.Name);
     }
 
@@ -97,17 +93,18 @@ public class SessionEndpointTests
     public async Task StartSessionById_Returns_OkResult_With_SessionResource()
     {
         // Arrange
-        var session = Some.Session.ThatIsValid().WithSessionId(_sessionId);
+        var session = Some.Session.ThatIsValid();
         var objectStore = new FakeObjectStore(
             championships: [Some.Championship.ThatIsValid().WithFeature(new FlatDriverSkillFeature(true))],
             drivers: [
                 Some.Driver.ThatIsValid().WithData(new FlatDriverSkillDriverData(5)),
                 Some.Driver.ThatIsValid().WithData(new FlatDriverSkillDriverData(7))
             ],
+            events: [Some.Event.ThatIsValid()],
             sessions: [session]);
 
         // Act
-        var result = await SessionEndpoints.UpdateSessionStateById(_championshipId, _eventId, _sessionId, new SessionStateChangeBody
+        var result = await SessionEndpoints.UpdateSessionStateById(new(1), new(1), new(1), new SessionStateChangeBody
         {
             State = State.Running
         }, versionEtag, objectStore);
@@ -115,7 +112,7 @@ public class SessionEndpointTests
         // Assert
         var sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
-        sessionResource.SessionId.Should().Be(_sessionId);
+        sessionResource.SessionId.Should().Be(new SessionId(1));
         sessionResource.State.Should().Be(State.Running);
         sessionResource.Participants.Should().HaveCount(2);
     }
@@ -124,7 +121,7 @@ public class SessionEndpointTests
     public async Task FinishSessionById_Returns_OkResult_With_SessionResource()
     {
         // Arrange
-        var session = Some.Session.ThatIsValid().WithSessionId(_sessionId).ThatHasStarted(
+        var session = Some.Session.ThatIsValid().ThatHasStarted(
             features: [new FlatDriverSkillFeature(true)],
             participants: [
                 new SessionParticipant(new(1), 1, new([new FlatDriverSkillDriverData(5)])),
@@ -133,10 +130,11 @@ public class SessionEndpointTests
 
         var objectStore = new FakeObjectStore(
             championships: [Some.Championship.ThatIsValid()],
+            events: [Some.Event.ThatIsValid()],
             sessions: [session]);
 
         // Act
-        var result = await SessionEndpoints.UpdateSessionStateById(_championshipId, _eventId, _sessionId, new SessionStateChangeBody
+        var result = await SessionEndpoints.UpdateSessionStateById(new(1), new(1), new(1), new SessionStateChangeBody
         {
             State = State.Finished
         }, versionEtag, objectStore);
@@ -144,7 +142,7 @@ public class SessionEndpointTests
         // Assert
         var sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
-        sessionResource.SessionId.Should().Be(_sessionId);
+        sessionResource.SessionId.Should().Be(new SessionId(1));
         sessionResource.State.Should().Be(State.Finished);
     }
 
@@ -152,7 +150,7 @@ public class SessionEndpointTests
     public async Task ProgressSessionById_Returns_OkResult_With_SessionResource()
     {
         // Arrange
-        var session = Some.Session.ThatIsValid().WithSessionId(_sessionId).ThatHasStarted(
+        var session = Some.Session.ThatIsValid().ThatHasStarted(
             features: [new FlatDriverSkillFeature(true)],
             participants: [
                 new SessionParticipant(new(1), 1, new([new FlatDriverSkillDriverData(5)])), 
@@ -164,7 +162,7 @@ public class SessionEndpointTests
             sessions: [session]);
 
         // Act
-        var result = await SessionEndpoints.UpdateSessionProgressById(_championshipId, _eventId, _sessionId, new SessionProgressChangeBody
+        var result = await SessionEndpoints.UpdateSessionProgressById(new(1), new(1), new(1), new SessionProgressChangeBody
         {
             ElapsedLaps = 1
         }, versionEtag, objectStore);
@@ -172,7 +170,7 @@ public class SessionEndpointTests
         // Assert
         var sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
-        sessionResource.SessionId.Should().Be(_sessionId);
+        sessionResource.SessionId.Should().Be(new SessionId(1));
         sessionResource.State.Should().Be(State.Running);
         sessionResource.Participants.Should().HaveCount(2);
     }
@@ -184,8 +182,8 @@ public class SessionEndpointTests
         var objectStore = new FakeObjectStore(
             championships: [Some.Championship.ThatIsValid().WithFeature(new FlatDriverSkillFeature(true))],
             drivers: [
-                Some.Driver.ThatIsValid().WithData(new FlatDriverSkillDriverData(5)),
-                Some.Driver.ThatIsValid().WithData(new FlatDriverSkillDriverData(7))
+                Some.Driver.ThatIsValid().WithDriverId(1).WithData(new FlatDriverSkillDriverData(5)),
+                Some.Driver.ThatIsValid().WithDriverId(2).WithData(new FlatDriverSkillDriverData(7))
             ],
             events: [Some.Event.ThatIsValid()]
         );
@@ -193,12 +191,11 @@ public class SessionEndpointTests
         var sessionChange = SomeSessionChange;
 
         // Act
-        var result = await SessionEndpoints.CreateSession(_championshipId, _eventId, sessionChange, objectStore, IdGeneratorHelper.GenerateId);
+        var result = await SessionEndpoints.CreateSession(new(1), new(1), sessionChange, objectStore, IdGeneratorHelper.GenerateId);
         var sessionResource = result.Should().BeOfType<CreatedAtRoute<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
 
-        // Act
-        result = await SessionEndpoints.UpdateSessionStateById(_championshipId, _eventId, sessionResource.SessionId, new SessionStateChangeBody
+        result = await SessionEndpoints.UpdateSessionStateById(new(1),new(1), sessionResource.SessionId, new SessionStateChangeBody
         {
             State = State.Running
         }, sessionResource.Version, objectStore);
@@ -206,8 +203,7 @@ public class SessionEndpointTests
         sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
 
-        // Act
-        result = await SessionEndpoints.UpdateSessionProgressById(_championshipId, _eventId, sessionResource.SessionId, new SessionProgressChangeBody
+        result = await SessionEndpoints.UpdateSessionProgressById(new(1), new(1), sessionResource.SessionId, new SessionProgressChangeBody
         {
             ElapsedLaps = sessionResource.LapCount
         }, sessionResource.Version, objectStore);
@@ -215,8 +211,7 @@ public class SessionEndpointTests
         sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
 
-        // Act
-        result = await SessionEndpoints.UpdateSessionStateById(_championshipId, _eventId, sessionResource.SessionId, new SessionStateChangeBody
+        result = await SessionEndpoints.UpdateSessionStateById(new(1), new(1), sessionResource.SessionId, new SessionStateChangeBody
         {
             State = State.Finished
         }, sessionResource.Version, objectStore);

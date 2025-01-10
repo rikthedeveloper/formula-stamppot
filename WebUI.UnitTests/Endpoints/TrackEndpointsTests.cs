@@ -12,9 +12,6 @@ using WebUI.UnitTests.Fakes;
 namespace WebUI.UnitTests.Endpoints;
 public class TrackEndpointsTests
 {
-    readonly ChampionshipId championshipId = new (IdGeneratorHelper.GenerateId());
-    readonly TrackId trackId = new (IdGeneratorHelper.GenerateId());
-
     static TrackChangeBody SomeTrackChange => new TrackChangeBody() { Name = "Updated Test Track", City = "Test City", Country = "Netherlands", Length = Distance.FromKilometers(5) };
     readonly string versionEtag = EndpointTestsHelpers.WrapEtag(FakeObjectStore.DefaultObjectVersion);
 
@@ -26,7 +23,7 @@ public class TrackEndpointsTests
         var trackChange = SomeTrackChange;
 
         // Act
-        var result = await TrackEndpoints.CreateTrack(championshipId, trackChange, objectStore, IdGeneratorHelper.GenerateId);
+        var result = await TrackEndpoints.CreateTrack(new(1), trackChange, objectStore, IdGeneratorHelper.GenerateId);
 
         // Assert
         var createdAtRouteResult = result.Should().BeOfType<CreatedAtRoute<TrackResource>>().Subject;
@@ -44,7 +41,7 @@ public class TrackEndpointsTests
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()], tracks);
 
         // Act
-        var result = await TrackEndpoints.ListTracks(championshipId, objectStore);
+        var result = await TrackEndpoints.ListTracks(new(1), objectStore);
 
         // Assert
         var resourceCollection = result.Should().BeOfType<Ok<TrackResourceCollection>>()
@@ -56,33 +53,33 @@ public class TrackEndpointsTests
     public async Task FindTrackById_Returns_OkResult_With_TrackResource()
     {
         // Arrange
-        var track = Some.Track.ThatIsValid().WithId(trackId);
+        var track = Some.Track.ThatIsValid();
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()], [track]);
 
         // Act
-        var result = await TrackEndpoints.FindTrackById(championshipId, trackId, objectStore);
+        var result = await TrackEndpoints.FindTrackById(new(1), new(1), objectStore);
 
         // Assert
         var trackResource = result.Should().BeOfType<Ok<TrackResource>>()
             .Which.Value.Should().BeOfType<TrackResource>().Subject;
-        trackResource.TrackId.Should().Be(trackId);
+        trackResource.TrackId.Should().Be(new TrackId(1));
     }
 
     [Fact]
     public async Task UpdateTrackById_Returns_OkResult_With_TrackResource()
     {
         // Arrange
-        var track = Some.Track.ThatIsValid().WithId(trackId);
+        var track = Some.Track.ThatIsValid();
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()], [track]);
         var trackChange = SomeTrackChange;
 
         // Act
-        var result = await TrackEndpoints.UpdateTrackById(championshipId, trackId, trackChange, versionEtag, objectStore);
+        var result = await TrackEndpoints.UpdateTrackById(new(1), new(1), trackChange, versionEtag, objectStore);
 
         // Assert
         var trackResource = result.Should().BeOfType<Ok<TrackResource>>()
             .Which.Value.Should().BeOfType<TrackResource>().Subject;
-        trackResource.TrackId.Should().Be(trackId);
+        trackResource.TrackId.Should().Be(new TrackId(1));
     }
 
     [Fact]
@@ -92,7 +89,7 @@ public class TrackEndpointsTests
         var objectStore = new FakeObjectStore([]);
 
         // Act & Assert
-        var createFunc = () => TrackEndpoints.CreateTrack(championshipId, SomeTrackChange, objectStore, IdGeneratorHelper.GenerateId);
+        var createFunc = () => TrackEndpoints.CreateTrack(new(1), SomeTrackChange, objectStore, IdGeneratorHelper.GenerateId);
         await createFunc.Should().ThrowExactlyAsync<InvalidChampionshipException>();
     }
 
@@ -112,11 +109,10 @@ public class TrackEndpointsTests
     public async Task FindTrackById_Throws_InvalidChampionshipException_When_ChampionshipDoesNotExist()
     {
         // Arrange
-        var championshipId = new ChampionshipId(IdGeneratorHelper.GenerateId());
         var objectStore = new FakeObjectStore(tracks: [Some.Track.ThatIsValid()]);
 
         // Act & Assert
-        var findFunc = () => TrackEndpoints.FindTrackById(championshipId, trackId, objectStore);
+        var findFunc = () => TrackEndpoints.FindTrackById(new(1), new(1), objectStore);
         await findFunc.Should().ThrowExactlyAsync<InvalidChampionshipException>();
     }
 
@@ -127,7 +123,7 @@ public class TrackEndpointsTests
         var objectStore = new FakeObjectStore(tracks: [Some.Track.ThatIsValid()]);
 
         // Act & Assert
-        var updateFunc = () => TrackEndpoints.UpdateTrackById(championshipId, trackId, SomeTrackChange, versionEtag, objectStore);
+        var updateFunc = () => TrackEndpoints.UpdateTrackById(new(1), new(1), SomeTrackChange, versionEtag, objectStore);
         await updateFunc.Should().ThrowExactlyAsync<InvalidChampionshipException>();
     }
 
@@ -138,18 +134,18 @@ public class TrackEndpointsTests
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()]);
 
         // Act & Assert
-        var updateFunc = () => TrackEndpoints.UpdateTrackById(championshipId, trackId, SomeTrackChange, versionEtag, objectStore);
+        var updateFunc = () => TrackEndpoints.UpdateTrackById(new(1), new(1), SomeTrackChange, versionEtag, objectStore);
         await updateFunc.Should().ThrowExactlyAsync<InvalidTrackException>();
     }
 
     [Fact]
-    public async Task UpdateTrackById_Throws_OptimisticConcurrencyException_When_UpdateAsync_Returns_Zero()
+    public async Task UpdateTrackById_Throws_OptimisticConcurrencyException_When_Version_Is_Invalid()
     {
         // Arrange
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()], [Some.Track.ThatIsValid()]);
 
         // Act & Assert
-        var updateFunc = () => TrackEndpoints.UpdateTrackById(championshipId, trackId, SomeTrackChange, "invalid-version", objectStore);
+        var updateFunc = () => TrackEndpoints.UpdateTrackById(new(1), new(1), SomeTrackChange, "invalid-version", objectStore);
         await updateFunc.Should().ThrowExactlyAsync<OptimisticConcurrencyException>();
     }
 }

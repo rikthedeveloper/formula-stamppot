@@ -12,9 +12,6 @@ using WebUI.UnitTests.Fakes;
 namespace WebUI.UnitTests.Endpoints;
 public class DriverEndpointsTests
 {
-    readonly ChampionshipId championshipId = new (IdGeneratorHelper.GenerateId());
-    readonly DriverId driverId = new (IdGeneratorHelper.GenerateId());
-
     static DriverChangeBody SomeDriverChange => new() { Name = [new("Max"), new("Verstappen", true)] };
     readonly string versionEtag = EndpointTestsHelpers.WrapEtag(FakeObjectStore.DefaultObjectVersion);
 
@@ -26,7 +23,7 @@ public class DriverEndpointsTests
         var driverChange = SomeDriverChange;
 
         // Act
-        var result = await DriverEndpoints.CreateDriver(championshipId, driverChange, objectStore, IdGeneratorHelper.GenerateId);
+        var result = await DriverEndpoints.CreateDriver(new(1), driverChange, objectStore, IdGeneratorHelper.GenerateId);
 
         // Assert
         var createdAtRouteResult = result.Should().BeOfType<CreatedAtRoute<DriverResource>>().Subject;
@@ -44,45 +41,45 @@ public class DriverEndpointsTests
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()], [], drivers);
 
         // Act
-        var result = await DriverEndpoints.ListDrivers(championshipId, objectStore);
+        var result = await DriverEndpoints.ListDrivers(new(1), objectStore);
 
         // Assert
         var resourceCollection = result.Should().BeOfType<Ok<DriverResourceCollection>>()
             .Which.Value.Should().BeOfType<DriverResourceCollection>().Subject;
-        resourceCollection.Items.Count.Should().Be(drivers.Length);
+        resourceCollection.Items.Should().HaveCount(drivers.Length);
     }
 
     [Fact]
     public async Task FindDriverById_Returns_OkResult_With_DriverResource()
     {
         // Arrange
-        var driver = Some.Driver.ThatIsValid().WithDriverId(driverId);
+        var driver = Some.Driver.ThatIsValid();
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()], [], [driver]);
 
         // Act
-        var result = await DriverEndpoints.FindDriverById(championshipId, driverId, objectStore);
+        var result = await DriverEndpoints.FindDriverById(new(1), new(1), objectStore);
 
         // Assert
         var driverResource = result.Should().BeOfType<Ok<DriverResource>>()
             .Which.Value.Should().BeOfType<DriverResource>().Subject;
-        driverResource.DriverId.Should().Be(driverId);
+        driverResource.DriverId.Should().BeEquivalentTo(new DriverId(1));
     }
 
     [Fact]
     public async Task UpdateDriverById_Returns_OkResult_With_DriverResource()
     {
         // Arrange
-        var driver = Some.Driver.ThatIsValid().WithDriverId(driverId);
+        var driver = Some.Driver.ThatIsValid().WithDriverId(1);
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()], [], [driver]);
         var driverChange = SomeDriverChange;
 
         // Act
-        var result = await DriverEndpoints.UpdateDriverById(championshipId, driverId, driverChange, versionEtag, objectStore);
+        var result = await DriverEndpoints.UpdateDriverById(new(1), new(1), driverChange, versionEtag, objectStore);
 
         // Assert
         var driverResource = result.Should().BeOfType<Ok<DriverResource>>()
             .Which.Value.Should().BeOfType<DriverResource>().Subject;
-        driverResource.DriverId.Should().Be(driverId);
+        driverResource.DriverId.Should().BeEquivalentTo((new DriverId(1)));
     }
 
     [Fact]
@@ -92,7 +89,7 @@ public class DriverEndpointsTests
         var objectStore = new FakeObjectStore([]);
 
         // Act & Assert
-        var createFunc = () => DriverEndpoints.CreateDriver(championshipId, SomeDriverChange, objectStore, IdGeneratorHelper.GenerateId);
+        var createFunc = () => DriverEndpoints.CreateDriver(new(1), SomeDriverChange, objectStore, IdGeneratorHelper.GenerateId);
         await createFunc.Should().ThrowExactlyAsync<InvalidChampionshipException>();
     }
 
@@ -112,11 +109,10 @@ public class DriverEndpointsTests
     public async Task FindDriverById_Throws_InvalidChampionshipException_When_ChampionshipDoesNotExist()
     {
         // Arrange
-        var championshipId = new ChampionshipId(IdGeneratorHelper.GenerateId());
         var objectStore = new FakeObjectStore(drivers: [Some.Driver.ThatIsValid()]);
 
         // Act & Assert
-        var findFunc = () => DriverEndpoints.FindDriverById(championshipId, driverId, objectStore);
+        var findFunc = () => DriverEndpoints.FindDriverById(new(1), new(1), objectStore);
         await findFunc.Should().ThrowExactlyAsync<InvalidChampionshipException>();
     }
 
@@ -127,7 +123,7 @@ public class DriverEndpointsTests
         var objectStore = new FakeObjectStore(drivers: [Some.Driver.ThatIsValid()]);
 
         // Act & Assert
-        var updateFunc = () => DriverEndpoints.UpdateDriverById(championshipId, driverId, SomeDriverChange, versionEtag, objectStore);
+        var updateFunc = () => DriverEndpoints.UpdateDriverById(new(1), new(1), SomeDriverChange, versionEtag, objectStore);
         await updateFunc.Should().ThrowExactlyAsync<InvalidChampionshipException>();
     }
 
@@ -138,7 +134,7 @@ public class DriverEndpointsTests
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()]);
 
         // Act & Assert
-        var updateFunc = () => DriverEndpoints.UpdateDriverById(championshipId, driverId, SomeDriverChange, versionEtag, objectStore);
+        var updateFunc = () => DriverEndpoints.UpdateDriverById(new(1), new(1), SomeDriverChange, versionEtag, objectStore);
         await updateFunc.Should().ThrowExactlyAsync<InvalidDriverException>();
     }
 
@@ -149,7 +145,7 @@ public class DriverEndpointsTests
         var objectStore = new FakeObjectStore([Some.Championship.ThatIsValid()], [], [Some.Driver.ThatIsValid()]);
 
         // Act & Assert
-        var updateFunc = () => DriverEndpoints.UpdateDriverById(championshipId, driverId, SomeDriverChange, "invalid-version", objectStore);
+        var updateFunc = () => DriverEndpoints.UpdateDriverById(new(1), new(1), SomeDriverChange, "invalid-version", objectStore);
         await updateFunc.Should().ThrowExactlyAsync<OptimisticConcurrencyException>();
     }
 }

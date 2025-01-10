@@ -77,7 +77,7 @@ public class ChampionshipEndpointsTests
         // Arrange
         var championshipId = new ChampionshipId(IdGeneratorHelper.GenerateId());
         var championshipChange = new ChampionshipChangeRequestBody { Name = "Updated Test Championship" };
-        var championship = Some.Championship.ThatIsValid().WithId(championshipId);
+        var championship = Some.Championship.ThatIsValid().WithChampionshipId(championshipId);
         var objectStore = new FakeObjectStore([championship]);
 
         // Act
@@ -132,7 +132,7 @@ public class ChampionshipEndpointsTests
         // Arrange
         var championshipId = new ChampionshipId(IdGeneratorHelper.GenerateId());
         var championshipChange = new ChampionshipChangeRequestBody { Name = "Updated Test Championship" };
-        var championship = Some.Championship.ThatIsValid().WithId(championshipId);
+        var championship = Some.Championship.ThatIsValid().WithChampionshipId(championshipId);
         var objectStore = new FakeObjectStore([championship]);
 
         // Act & Assert

@@ -4,42 +4,19 @@ using WebUI.Types;
 using WebUI.UnitTests.Fakes;
 
 namespace WebUI.UnitTests.Builder;
-internal class SessionBuilder : EntityBuilder<Session>
+internal class SessionBuilder : EntityBuilder<Session, SessionBuilder>
 {
-    public SessionBuilder()
-    {
-        With<ushort>(s => s.LapCount, 1);
-    }
-
-    public SessionBuilder WithSessionId() => WithSessionId(IdGeneratorHelper.GenerateId());
-    public SessionBuilder WithSessionId(long sessionId) => WithSessionId(new(sessionId));
-    public SessionBuilder WithSessionId(SessionId sessionId)
-    {
-        With(c => c.SessionId, sessionId);
-        return this;
-    }
-
-    public SessionBuilder WithChampionshipId() => WithChampionshipId(IdGeneratorHelper.GenerateId());
     public SessionBuilder WithChampionshipId(long championshipId) => WithChampionshipId(new(championshipId));
-    public SessionBuilder WithChampionshipId(ChampionshipId championshipId)
-    {
-        With(t => t.ChampionshipId, championshipId);
-        return this;
-    }
+    public SessionBuilder WithChampionshipId(ChampionshipId championshipId) => With(t => t.ChampionshipId, championshipId);
 
-    public SessionBuilder OfEvent() => OfEvent(IdGeneratorHelper.GenerateId());
     public SessionBuilder OfEvent(long eventId) => OfEvent(new(eventId));
-    public SessionBuilder OfEvent(EventId eventId)
-    {
-        With(s => s.EventId, eventId);
-        return this;
-    }
+    public SessionBuilder OfEvent(EventId eventId) => With(s => s.EventId, eventId);
 
-    public SessionBuilder WithName(string name)
-    {
-        With(s => s.Name, new(name));
-        return this;
-    }
+    public SessionBuilder WithRandomSessionId() => WithSessionId(IdGeneratorHelper.GenerateId());
+    public SessionBuilder WithSessionId(long sessionId) => WithSessionId(new(sessionId));
+    public SessionBuilder WithSessionId(SessionId sessionId) => With(c => c.SessionId, sessionId);
+
+    public SessionBuilder WithName(string name) => With(s => s.Name, name);
 
     public SessionBuilder ThatHasStarted(IEnumerable<IFeature> features, IEnumerable<SessionParticipant> participants)
     {
@@ -70,5 +47,6 @@ internal class SessionBuilder : EntityBuilder<Session>
         return this;
     }
 
-    public override SessionBuilder ThatIsValid() => WithSessionId().WithChampionshipId().OfEvent().WithName("Test Session");
+    public override SessionBuilder ThatIsValid() => WithChampionshipId(1).OfEvent(1).WithSessionId(1).WithName("Test Session")
+        .With<ushort>(s => s.LapCount, 1);
 }

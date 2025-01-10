@@ -8,7 +8,7 @@ using Newtonsoft.Json.Linq;
 
 namespace WebUI.UnitTests.Builder;
 
-internal abstract class EntityBuilder<T> : Builder<T>
+internal abstract class EntityBuilder<T, TBuilder> : Builder<T> where TBuilder : EntityBuilder<T, TBuilder>
     where T : class
 {
     private ListDictionary? _propertiesCached;
@@ -25,6 +25,14 @@ internal abstract class EntityBuilder<T> : Builder<T>
         var value = Get<TProp>(key);
         return Equals(value, default(TProp)) ? defaultValue : value;
     }
+
+    protected new TBuilder With<TProp>(Expression<Func<T, TProp>> expression, TProp value) => (TBuilder)base.With(expression, value);
+    protected new TBuilder With<TProp, TBuilder2>(Expression<Func<T, TProp>> expression, TProp value) where TProp : IBuilder<TBuilder2> => (TBuilder)base.With(expression, value);
+    protected new TBuilder With<TProp>(string key, TProp value) => (TBuilder)base.With(key, value);
+    protected new TBuilder With<TProp, TBuilder2>(string key, TProp value) where TProp : IBuilder<TBuilder2> => (TBuilder)base.With(key, value);
+    protected new TBuilder ForMany<TProp, TBuilder2>(Expression<Func<T, IEnumerable<TProp>>> expression, params TBuilder2[] values) where TBuilder2 : IBuilder<TProp> => (TBuilder)base.ForMany(expression, values);
+    protected new TBuilder IgnoreProperty<TProp>(Expression<Func<T, TProp>> expression) => (TBuilder)base.IgnoreProperty(expression);
+    protected new TBuilder IgnoreProperty<TProp>(string key) => (TBuilder)base.IgnoreProperty<TProp>(key);
 
     protected override T CreateInstance()
     {
