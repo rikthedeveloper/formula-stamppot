@@ -48,5 +48,6 @@ internal class SessionBuilder : EntityBuilder<Session, SessionBuilder>
     }
 
     public override SessionBuilder ThatIsValid() => WithChampionshipId(1).OfEvent(1).WithSessionId(1).WithName("Test Session")
+        .With(s => s.PreviousSessionHasFinished, true)
         .With<ushort>(s => s.LapCount, 1);
 }

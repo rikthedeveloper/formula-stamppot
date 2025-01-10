@@ -21,7 +21,9 @@ public class Session(ChampionshipId championshipId, Types.EventId eventId, Sessi
     public IImmutableList<SessionParticipant> Participants { get; private set; } = [];
     public IImmutableDictionary<ushort, LapResult> LapResults { get; private set; } = ImmutableDictionary<ushort, LapResult>.Empty;
 
-    public bool CanStart() => State == State.NotStarted;
+    public bool PreviousSessionHasFinished { get; set; } = false;
+
+    public bool CanStart() => PreviousSessionHasFinished && State == State.NotStarted;
     public bool CanFinish() => State == State.Running && ElapsedLaps == LapCount;
 
     public void Start(FeatureCollection features, IImmutableList<SessionParticipant> participants)

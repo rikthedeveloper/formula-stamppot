@@ -1,7 +1,9 @@
 ﻿using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints.Internal.Specifications;
@@ -32,6 +34,9 @@ public class SessionResource(Session session, string version) : IVersioned
     public FeatureCollection Features { get; } = session.Features;
     public ushort ElapsedLaps { get; } = session.ElapsedLaps;
     public IImmutableDictionary<ushort, LapResult> LapResults { get; } = session.LapResults.ToImmutableDictionary(kvp => kvp.Key, kvp => new LapResult(kvp.Value));
+
+    [JsonIgnore]
+    public bool IsPreviousSessionFinished { get; } = session.PreviousSessionHasFinished;
 
     public class SessionParticipant(Domain.SessionParticipant sessionParticipant)
     {
@@ -150,6 +155,8 @@ public static class SessionEndpoints
         SessionId sessionId = new(generateId());
         var session = new Session(championshipId, eventId, sessionId);
         change.Apply(session);
+        var previousSession = await transaction.Sessions.FindAsync([new SessionIdSpecification(championshipId, eventId, @event.Object.Schedule.LastOrDefault())], cancellationToken);
+        session.PreviousSessionHasFinished = previousSession is not { Object.State: not State.Finished };
         @event.Object.Schedule = @event.Object.Schedule.Add(sessionId);
 
         await transaction.Sessions.InsertAsync(session, cancellationToken);
@@ -244,8 +251,14 @@ public static class SessionEndpoints
         var championship = await transaction.Championships.FindAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken)
             ?? throw new InvalidChampionshipException(championshipId);
 
+        var @event = await transaction.Events.FindAsync([new EventIdSpecification(championshipId, eventId)], cancellationToken)
+            ?? throw new InvalidEventException(championshipId, eventId);
+
         if (stateChange.State == State.Running)
         {
+            if (!session.Object.PreviousSessionHasFinished)
+                throw new SessionScheduleConflictException(championshipId, eventId, sessionId, @event.Object.Schedule.TakeWhile(s => s != sessionId).Last());
+
             var participantDrivers = await transaction.Drivers.ListAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken);
             session.Object.Start(championship.Object.Features, participantDrivers.Select((d, i) => new SessionParticipant(d.Object.DriverId, (ushort)(i + 1), d.Object.Data)).ToImmutableList());
         }
@@ -253,6 +266,17 @@ public static class SessionEndpoints
         if (stateChange.State == State.Finished)
         {
             session.Object.Finish();
+
+            var nextSessionId = @event.Object.Schedule
+                .SkipWhile(s => s != sessionId)
+                .Skip(1)
+                .FirstOrDefault();
+            var nextSessionIdSpecification = new SessionIdSpecification(championshipId, eventId, nextSessionId);
+            if (nextSessionId != default && await transaction.Sessions.FindAsync([nextSessionIdSpecification], cancellationToken) is ObjectRecord<Session> nextSession)
+            {
+                nextSession.Object.PreviousSessionHasFinished = true;
+                await transaction.Sessions.UpdateAsync([nextSessionIdSpecification], nextSession.Object, cancellationToken);
+            }
         }
 
         if (await transaction.Sessions.UpdateAsync([sessionIdSpecification, versionSpecification], session.Object, cancellationToken) == 0)
@@ -332,4 +356,10 @@ public class InvalidSessionStateChangeException(ChampionshipId championshipId, E
     const string _errorMessage = "The given state transition is not valid for the specified Session.";
     public State RequestedState { get; } = requestedState;
     public State[] ValidStates { get; } = validStates;
+}
+
+public class SessionScheduleConflictException(ChampionshipId championshipId, EventId eventId, SessionId sessionId, SessionId conflictingSession) : SessionException(championshipId, eventId, sessionId, _errorMessage, null)
+{
+    const string _errorMessage = "The Session cannot be started while the previous scheduled Session is not yet Finished";
+    public SessionId ConflictingSession { get; } = conflictingSession;
 }

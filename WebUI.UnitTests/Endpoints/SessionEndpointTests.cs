@@ -147,6 +147,34 @@ public class SessionEndpointTests
     }
 
     [Fact]
+    public async Task FinishSessionById_SetsSessionFinished_OnNextSession()
+    {
+        // Arrange
+        var session1 = Some.Session.ThatIsValid().ThatHasStarted(
+            features: [new FlatDriverSkillFeature(true)],
+            participants: [
+                new SessionParticipant(new(1), 1, new([new FlatDriverSkillDriverData(5)])),
+                new SessionParticipant(new(2), 2, new([new FlatDriverSkillDriverData(3)]))
+            ]).ThatHasProgressedToTheEnd().Build();
+
+        var session2 = Some.Session.ThatIsValid().WithSessionId(2).Build();
+
+        var objectStore = new FakeObjectStore(
+            championships: [Some.Championship.ThatIsValid().WithChampionshipId(1)],
+            events: [Some.Event.ThatIsValid().WithSchedule(session1.SessionId, session2.SessionId)],
+            sessions: [session1, session2]);
+
+        // Act
+        await SessionEndpoints.UpdateSessionStateById(new(1), new(1), new(1), new SessionStateChangeBody
+        {
+            State = State.Finished
+        }, versionEtag, objectStore);
+
+        // Assert
+        session2.PreviousSessionHasFinished.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ProgressSessionById_Returns_OkResult_With_SessionResource()
     {
         // Arrange
