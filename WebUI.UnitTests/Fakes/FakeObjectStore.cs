@@ -4,7 +4,7 @@ using WebUI.Domain;
 namespace WebUI.UnitTests.Fakes;
 public class FakeObjectStore : IObjectStore
 {
-    public const string DefaultObjectVersion = "1";
+    public static ObjectVersion DefaultObjectVersion { get; } = new("1");
 
     public FakeObjectStore(IEnumerable<Championship>? championships = null,
         IEnumerable<Track>? tracks = null,

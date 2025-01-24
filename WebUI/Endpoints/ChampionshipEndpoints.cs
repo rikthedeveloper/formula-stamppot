@@ -95,17 +95,16 @@ public static class ChampionshipEndpoints
     public static async Task<IResult> UpdateChampionshipById(
         ChampionshipId championshipId,
         [FromBody] ChampionshipChangeRequestBody change,
-        [FromHeader(Name = "If-Match")] string version,
+        [FromHeader(Name = "If-Match")] ObjectVersion version,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        version = version[1..^1];
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
         var championship = await transaction.Championships.FindAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken)
             ?? throw new InvalidChampionshipException(championshipId);
 
         change.Apply(championship);
-        if (await transaction.Championships.UpdateAsync([new ChampionshipIdSpecification(championshipId), new VersionMatchSpecification(new(version))], championship.Object, cancellationToken) == 0)
+        if (await transaction.Championships.UpdateAsync([new ChampionshipIdSpecification(championshipId), new VersionMatchSpecification(version)], championship.Object, cancellationToken) == 0)
         {
             throw new OptimisticConcurrencyException();
         }

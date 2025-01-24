@@ -8,6 +8,18 @@ public record struct ObjectVersion(string VersionTag)
     public override readonly int GetHashCode() => VersionTag.GetHashCode();
 
     public static implicit operator string(ObjectVersion objectVersion) => objectVersion.VersionTag;
+
+    public static bool TryParse(string? value, out ObjectVersion @out)
+    {
+        if (value is not null)
+        {
+            // As an HTTP header, the version string must be quoted. The inner version value should not be.
+            @out = new(value.Trim('"'));
+            return true;
+        }
+        @out = default;
+        return false;
+    }
 }
 
 public record class ObjectRecord(
