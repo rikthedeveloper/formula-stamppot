@@ -9,7 +9,7 @@ namespace WebUI.Filters;
 
 public record class ValidationMessage(string PropertyName, string Code, string Message);
 
-public interface IValidator2
+public interface IValidator
 {
     Task<ValidationResult> ValidateAsync();
 }
@@ -34,7 +34,7 @@ public class ValidationFilter(int parameterIndex) : IEndpointFilter
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var bodyArgument = context.GetArgument<object>(parameterIndex);
-        if (bodyArgument is IValidator2 validator)
+        if (bodyArgument is IValidator validator)
         {
             var validationResult = await validator.ValidateAsync();
 
@@ -93,7 +93,7 @@ public class ValidationFilter(int parameterIndex) : IEndpointFilter
         {
             var bodyParameter = handlerParameters[bodyParamIndex.Value];
 
-            if (bodyParameter.ParameterType.GetInterface(nameof(IValidator2)) != null)
+            if (bodyParameter.ParameterType.GetInterface(nameof(IValidator)) != null)
             {
                 var validationFilter = new ValidationFilter(bodyParamIndex.Value);
                 return invocationContext => validationFilter.InvokeAsync(invocationContext, next);

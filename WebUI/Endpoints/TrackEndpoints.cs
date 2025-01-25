@@ -1,5 +1,4 @@
 ﻿using FluentValidation;
-using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
@@ -7,8 +6,8 @@ using WebUI.Endpoints.Internal;
 using WebUI.Endpoints.Internal.Specifications;
 using WebUI.Endpoints.Resources;
 using WebUI.Endpoints.Resources.Interfaces;
-using WebUI.Filters;
 using WebUI.Types;
+using WebUI.Validation;
 
 namespace WebUI.Endpoints;
 
@@ -28,7 +27,8 @@ public class TrackResource(Track track, string version) : IVersioned
     public string Version { get; } = version;
 }
 
-public class TrackChangeBody : IValidator2
+[UseValidator]
+public partial class TrackChangeBody
 {
     public string Name { get; init; } = string.Empty;
     public Distance Length { get; init; } = Distance.Zero;
@@ -43,15 +43,11 @@ public class TrackChangeBody : IValidator2
         track.Country = Country;
     }
 
-    public async Task<ValidationResult> ValidateAsync() => await new TrackChangeBodyValidator().ValidateAsync(this);
-    class TrackChangeBodyValidator : AbstractValidator<TrackChangeBody>
+    static partial void ConfigureValidator(AbstractValidator<TrackChangeBody> validator)
     {
-        public TrackChangeBodyValidator()
-        {
-            RuleFor(t => t.Name).NotEmpty().Length(3, 100);
-            RuleFor(t => t.City).NotEmpty().Length(3, 100);
-            RuleFor(t => t.Country).NotEmpty().Length(3, 100);
-        }
+        validator.RuleFor(t => t.Name).NotEmpty().Length(3, 100);
+        validator.RuleFor(t => t.City).NotEmpty().Length(3, 100);
+        validator.RuleFor(t => t.Country).NotEmpty().Length(3, 100);
     }
 }
 

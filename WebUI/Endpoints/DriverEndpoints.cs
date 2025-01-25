@@ -1,15 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using WebUI.Domain.ObjectStore;
-using WebUI.Domain;
-using WebUI.Endpoints.Internal.Specifications;
-using WebUI.Endpoints.Resources.Interfaces;
-using WebUI.Endpoints.Resources;
-using WebUI.Types;
+﻿using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using System.Collections.Immutable;
-using WebUI.Filters;
-using FluentValidation.Results;
-using FluentValidation;
+using WebUI.Domain;
+using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints.Internal;
+using WebUI.Endpoints.Internal.Specifications;
+using WebUI.Endpoints.Resources;
+using WebUI.Endpoints.Resources.Interfaces;
+using WebUI.Types;
+using WebUI.Validation;
 
 namespace WebUI.Endpoints;
 
@@ -28,7 +27,8 @@ public class DriverResource(Driver driver, string version) : IVersioned
     public string Version { get; } = version;
 }
 
-public class DriverChangeBody : IValidator2
+[UseValidator]
+public partial class DriverChangeBody
 {
     public ImmutableArray<NameToken> Name { get; init; } = [];
     public FeatureDataCollection<IFeatureDriverData> Data { get; init; } = new();
@@ -39,15 +39,9 @@ public class DriverChangeBody : IValidator2
         driver.Data = Data;
     }
 
-    static readonly Validator _validator = new();
-    public async Task<ValidationResult> ValidateAsync() => await _validator.ValidateAsync(this);
-
-    class Validator : AbstractValidator<DriverChangeBody>
+    static partial void ConfigureValidator(AbstractValidator<DriverChangeBody> validator)
     {
-        public Validator()
-        {
-            RuleFor(d => d.Name).NotEmpty();
-        }
+        validator.RuleFor(d => d.Name).NotEmpty();
     }
 }
 

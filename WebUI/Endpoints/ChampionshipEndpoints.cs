@@ -1,5 +1,4 @@
 ﻿using FluentValidation;
-using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
@@ -7,8 +6,8 @@ using WebUI.Endpoints.Internal;
 using WebUI.Endpoints.Internal.Specifications;
 using WebUI.Endpoints.Resources;
 using WebUI.Endpoints.Resources.Interfaces;
-using WebUI.Filters;
 using WebUI.Types;
+using WebUI.Validation;
 
 namespace WebUI.Endpoints;
 
@@ -20,7 +19,8 @@ public class ChampionshipResource(Championship championship, string version) : I
     public FeatureCollection Features { get; } = championship.Features;
 }
 
-public class ChampionshipChangeRequestBody : IValidator2
+[UseValidator]
+public partial class ChampionshipChangeRequestBody
 {
     public string Name { get; init; } = string.Empty;
     public FeatureCollection Features { get; init; } = new();
@@ -31,15 +31,9 @@ public class ChampionshipChangeRequestBody : IValidator2
         championship.Features = Features;
     }
 
-    static readonly Validator _validator = new();
-    public async Task<ValidationResult> ValidateAsync() => await _validator.ValidateAsync(this);
-
-    class Validator : AbstractValidator<ChampionshipChangeRequestBody>
+    static partial void ConfigureValidator(AbstractValidator<ChampionshipChangeRequestBody> validator)
     {
-        public Validator()
-        {
-             RuleFor(x => x.Name).NotEmpty().Length(3, 100);
-        }
+        validator.RuleFor(x => x.Name).NotEmpty().Length(3, 100);
     }
 }
 

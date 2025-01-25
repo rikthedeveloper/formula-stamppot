@@ -1,15 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using WebUI.Domain.ObjectStore;
+﻿using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using WebUI.Domain;
-using WebUI.Endpoints.Internal.Specifications;
-using WebUI.Endpoints.Resources.Interfaces;
-using WebUI.Endpoints.Resources;
-using WebUI.Types;
-using WebUI.Filters;
-using FluentValidation.Results;
-using FluentValidation;
-using EventId = WebUI.Types.EventId;
+using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints.Internal;
+using WebUI.Endpoints.Internal.Specifications;
+using WebUI.Endpoints.Resources;
+using WebUI.Endpoints.Resources.Interfaces;
+using WebUI.Types;
+using WebUI.Validation;
+using EventId = WebUI.Types.EventId;
 
 namespace WebUI.Endpoints;
 
@@ -26,7 +25,8 @@ public class EventResource(Event @event, string version) : IVersioned
     public string Version { get; } = version;
 }
 
-public class EventChangeBody : IValidator2
+[UseValidator]
+public partial class EventChangeBody
 {
     public TrackId TrackId { get; init; }
 
@@ -35,15 +35,9 @@ public class EventChangeBody : IValidator2
         @event.TrackId = TrackId;
     }
 
-    static readonly Validator _validator = new();
-    public async Task<ValidationResult> ValidateAsync() => await _validator.ValidateAsync(this);
-
-    class Validator : AbstractValidator<EventChangeBody>
+    static partial void ConfigureValidator(AbstractValidator<EventChangeBody> validator)
     {
-        public Validator()
-        {
-            RuleFor(d => d.TrackId).NotEmpty();
-        }
+        validator.RuleFor(d => d.TrackId).NotEmpty();
     }
 }
 

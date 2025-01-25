@@ -1,7 +1,6 @@
 ﻿using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using System.Collections.Immutable;
 using System.Text.Json.Serialization;
 using WebUI.Domain;
@@ -10,8 +9,8 @@ using WebUI.Endpoints.Internal;
 using WebUI.Endpoints.Internal.Specifications;
 using WebUI.Endpoints.Resources;
 using WebUI.Endpoints.Resources.Interfaces;
-using WebUI.Filters;
 using WebUI.Types;
+using WebUI.Validation;
 using EventId = WebUI.Types.EventId;
 
 namespace WebUI.Endpoints;
@@ -71,7 +70,8 @@ public class SessionResource(Session session, string version) : IVersioned
     }
 }
 
-public class SessionChangeBody : IValidator2
+[UseValidator]
+public partial class SessionChangeBody
 {
     public string Name { get; set; } = string.Empty;
     public ushort LapCount { get; set; } = 0;
@@ -82,20 +82,14 @@ public class SessionChangeBody : IValidator2
         session.LapCount = LapCount;
     }
 
-    static readonly Validator _validator = new();
-    public async Task<ValidationResult> ValidateAsync() => await _validator.ValidateAsync(this);
-
-    class Validator : AbstractValidator<SessionChangeBody>
+    static partial void ConfigureValidator(AbstractValidator<SessionChangeBody> validator)
     {
-        public Validator()
-        {
-            RuleFor(d => d.Name).NotEmpty();
-            RuleFor(d => d.LapCount).GreaterThan((ushort)0);
-        }
+        validator.RuleFor(d => d.Name).NotEmpty();
+        validator.RuleFor(d => d.LapCount).GreaterThan((ushort)0);
     }
 }
 
-public class SessionProgressChangeBody : IValidator2
+public class SessionProgressChangeBody : Filters.IValidator
 {
     public ushort ElapsedLaps { get; set; } = 0;
 
@@ -111,7 +105,7 @@ public class SessionProgressChangeBody : IValidator2
     }
 }
 
-public class SessionStateChangeBody : IValidator2
+public class SessionStateChangeBody : Filters.IValidator
 {
     public State State { get; set; } = State.NotStarted;
 
