@@ -39,5 +39,7 @@ public readonly record struct SessionId(long Value) : IEquatable<SessionId>, ITr
         };
     }
 
+    public string ToBase36String() => ConvertLongBase36.Encode(Value);
+
     public static implicit operator long(SessionId value) => value.Value;
 }

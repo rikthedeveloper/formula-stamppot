@@ -62,7 +62,7 @@ public class ChampionshipEndpointsTests
         var objectStore = new FakeObjectStore([championship]);
 
         // Act
-        var result = await ChampionshipEndpoints.FindChampionshipById(championship.ChampionshipId, objectStore);
+        var result = await ChampionshipEndpoints.FindChampionshipById(new(championship.ChampionshipId), objectStore);
 
         // Assert
         var okResult = result.Should().BeOfType<Ok<ChampionshipResource>>().Subject;
@@ -81,7 +81,7 @@ public class ChampionshipEndpointsTests
         var objectStore = new FakeObjectStore([championship]);
 
         // Act
-        var result = await ChampionshipEndpoints.UpdateChampionshipById(championshipId, championshipChange, FakeObjectStore.DefaultObjectVersion, objectStore);
+        var result = await ChampionshipEndpoints.UpdateChampionshipById(new(championshipId), championshipChange, FakeObjectStore.DefaultObjectVersion, objectStore);
 
         // Assert
         var okResult = result.Should().BeOfType<Ok<ChampionshipResource>>().Subject;
@@ -109,7 +109,7 @@ public class ChampionshipEndpointsTests
         var objectStore = new FakeObjectStore();
 
         // Act & Assert
-        var findFunc = () => ChampionshipEndpoints.FindChampionshipById(championshipId, objectStore);
+        var findFunc = () => ChampionshipEndpoints.FindChampionshipById(new(championshipId), objectStore);
         await findFunc.Should().ThrowExactlyAsync<InvalidChampionshipException>();
     }
 
@@ -122,7 +122,7 @@ public class ChampionshipEndpointsTests
         var objectStore = new FakeObjectStore();
 
         // Act & Assert
-        var updateFunc = () => ChampionshipEndpoints.UpdateChampionshipById(championshipId, championshipChange, FakeObjectStore.DefaultObjectVersion, objectStore);
+        var updateFunc = () => ChampionshipEndpoints.UpdateChampionshipById(new(championshipId), championshipChange, FakeObjectStore.DefaultObjectVersion, objectStore);
         await updateFunc.Should().ThrowExactlyAsync<InvalidChampionshipException>();
     }
 
@@ -136,7 +136,7 @@ public class ChampionshipEndpointsTests
         var objectStore = new FakeObjectStore([championship]);
 
         // Act & Assert
-        var updateFunc = () => ChampionshipEndpoints.UpdateChampionshipById(championshipId, championshipChange, new("invalid-version"), objectStore);
+        var updateFunc = () => ChampionshipEndpoints.UpdateChampionshipById(new(championshipId), championshipChange, new("invalid-version"), objectStore);
         await updateFunc.Should().ThrowExactlyAsync<OptimisticConcurrencyException>();
     }
 }

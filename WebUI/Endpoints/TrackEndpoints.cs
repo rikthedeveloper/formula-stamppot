@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
+using WebUI.Endpoints.Internal;
 using WebUI.Endpoints.Internal.Specifications;
 using WebUI.Endpoints.Resources;
 using WebUI.Endpoints.Resources.Interfaces;
@@ -67,93 +68,84 @@ public static class TrackEndpoints
     }
 
     public static async Task<IResult> CreateTrack(
-        ChampionshipId championshipId,
+        [AsParameters] ChampionshipRouteParameters routeParameters,
         TrackChangeBody change,
         [FromServices] IObjectStore objectStore,
         [FromServices] GenerateId generateId,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
         TrackId trackId = new(generateId());
-        var track = new Track(championshipId, trackId);
+        var track = new Track(routeParameters.ChampionshipId, trackId);
         change.Apply(track);
 
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
         await transaction.Tracks.InsertAsync(track, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        var createdTrack = await objectStore.Tracks.FindAsync([new TrackIdSpecification(championshipId, trackId)], cancellationToken) ?? throw new InvalidTrackException(championshipId, trackId);
-        return Results.CreatedAtRoute(nameof(FindTrackById), new
-        {
-            championshipId = championshipId.ToString("BASE36"),
-            trackId = trackId.ToString("BASE36")
-        }, new TrackResource(createdTrack, createdTrack.Version));
+        var createdTrack = await objectStore.Tracks.FindAsync([routeParameters.TrackIdSpecification(trackId)], cancellationToken) ?? throw new InvalidTrackException(routeParameters, trackId);
+        return Results.CreatedAtRoute(nameof(FindTrackById), routeParameters.ToRouteValues(trackId), new TrackResource(createdTrack, createdTrack.Version));
     }
 
     public static async Task<IResult> ListTracks(
-        ChampionshipId championshipId,
+        [AsParameters] ChampionshipRouteParameters routeParameters,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
-        var tracks = await objectStore.Tracks.ListAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken);
-        return Results.Ok(new TrackResourceCollection(championshipId, tracks.Select(c => new TrackResource(c, c.Version))));
+        var tracks = await objectStore.Tracks.ListAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken);
+        return Results.Ok(new TrackResourceCollection(routeParameters.ChampionshipId, tracks.Select(c => new TrackResource(c, c.Version))));
     }
 
     public static async Task<IResult> FindTrackById(
-        ChampionshipId championshipId,
-        TrackId trackId,
+        [AsParameters] TrackRouteParameters routeParameters,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
-        var track = await objectStore.Tracks.FindAsync([new TrackIdSpecification(championshipId, trackId)], cancellationToken)
-            ?? throw new InvalidTrackException(championshipId, trackId);
+        var track = await objectStore.Tracks.FindAsync([routeParameters.TrackIdSpecification()], cancellationToken)
+            ?? throw new InvalidTrackException(routeParameters);
 
         return Results.Ok(new TrackResource(track, track.Version));
     }
 
     public static async Task<IResult> UpdateTrackById(
-        ChampionshipId championshipId,
-        TrackId trackId,
+        [AsParameters] TrackRouteParameters routeParameters,
         [FromBody] TrackChangeBody change,
-        [FromHeader(Name = "If-Match")] string version,
+        [FromHeader(Name = "If-Match")] VersionMatchSpecification versionMatch,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        version = version.Trim('"'); // HTTP header MUST have quotation marks, but we don't want them here
-
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
-        var trackIdSpecification = new TrackIdSpecification(championshipId, trackId);
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
-        var track = await transaction.Tracks.FindAsync([trackIdSpecification], cancellationToken)
-            ?? throw new InvalidTrackException(championshipId, trackId);
+        var track = await transaction.Tracks.FindAsync([routeParameters.TrackIdSpecification()], cancellationToken)
+            ?? throw new InvalidTrackException(routeParameters);
 
         change.Apply(track.Object);
-        if (await transaction.Tracks.UpdateAsync([trackIdSpecification, new VersionMatchSpecification(version)], track.Object, cancellationToken) == 0)
+        if (await transaction.Tracks.UpdateAsync([routeParameters.TrackIdSpecification(), versionMatch], track.Object, cancellationToken) == 0)
         {
             throw new OptimisticConcurrencyException();
         }
 
         await transaction.CommitAsync(cancellationToken);
-        var updatedObject = await objectStore.Tracks.FindAsync([trackIdSpecification], cancellationToken)
-            ?? throw new InvalidTrackException(championshipId, trackId);
+        var updatedObject = await objectStore.Tracks.FindAsync([routeParameters.TrackIdSpecification()], cancellationToken)
+            ?? throw new InvalidTrackException(routeParameters);
         return Results.Ok(new TrackResource(updatedObject, updatedObject.Version));
     }
 }

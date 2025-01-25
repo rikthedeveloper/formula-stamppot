@@ -38,5 +38,7 @@ public readonly record struct DriverId(long Value) : IEquatable<DriverId>, ITryP
         };
     }
 
+    public string ToBase36String() => ConvertLongBase36.Encode(Value);
+
     public static implicit operator long(DriverId value) => value.Value;
 }

@@ -6,6 +6,7 @@ using System.Collections.Immutable;
 using System.Text.Json.Serialization;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
+using WebUI.Endpoints.Internal;
 using WebUI.Endpoints.Internal.Specifications;
 using WebUI.Endpoints.Resources;
 using WebUI.Endpoints.Resources.Interfaces;
@@ -19,6 +20,11 @@ public class SessionResourceCollection(ChampionshipId championshipId, EventId ev
 {
     public ChampionshipId ChampionshipId { get; } = championshipId;
     public EventId EventId { get; } = eventId;
+
+    public SessionResourceCollection(EventRouteParameters routeParameters, IEnumerable<SessionResource> items)
+        : this(routeParameters.ChampionshipId, routeParameters.EventId, items)
+    {
+    }
 }
 
 public class SessionResource(Session session, string version) : IVersioned
@@ -136,178 +142,153 @@ public static class SessionEndpoints
     }
 
     public static async Task<IResult> CreateSession(
-        ChampionshipId championshipId,
-        EventId eventId,
+        [AsParameters] EventRouteParameters routeParameters,
         SessionChangeBody change,
         [FromServices] IObjectStore objectStore,
         [FromServices] GenerateId generateId,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
-        {
-            throw new InvalidChampionshipException(championshipId);
-        }
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
+            throw new InvalidChampionshipException(routeParameters);
 
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
-        var @event = await transaction.Events.FindAsync([new EventIdSpecification(championshipId, eventId)], cancellationToken)
-            ?? throw new InvalidEventException(championshipId, eventId);
+        var @event = await transaction.Events.FindAsync([routeParameters.EventIdSpecification()], cancellationToken)
+            ?? throw new InvalidEventException(routeParameters);
 
         SessionId sessionId = new(generateId());
-        var session = new Session(championshipId, eventId, sessionId);
+        var session = new Session(routeParameters.ChampionshipId, routeParameters.EventId, sessionId);
         change.Apply(session);
-        var previousSession = await transaction.Sessions.FindAsync([new SessionIdSpecification(championshipId, eventId, @event.Object.Schedule.LastOrDefault())], cancellationToken);
+        var previousSession = await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(@event.Object.Schedule.LastOrDefault())], cancellationToken);
         session.PreviousSessionHasFinished = previousSession is not { Object.State: not State.Finished };
         @event.Object.Schedule = @event.Object.Schedule.Add(sessionId);
 
         await transaction.Sessions.InsertAsync(session, cancellationToken);
-        await transaction.Events.UpdateAsync([new EventIdSpecification(championshipId, eventId)], @event.Object, cancellationToken);
+        await transaction.Events.UpdateAsync([routeParameters.EventIdSpecification()], @event.Object, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        var createdSession = await objectStore.Sessions.FindAsync([new SessionIdSpecification(championshipId, eventId, sessionId)], cancellationToken)
-            ?? throw new InvalidSessionException(championshipId, eventId, sessionId);
+        var createdSession = await objectStore.Sessions.FindAsync([routeParameters.SessionIdSpecification(sessionId)], cancellationToken)
+            ?? throw new InvalidSessionException(routeParameters, sessionId);
 
-        return Results.CreatedAtRoute(nameof(FindSessionById), new
-        {
-            championshipId = championshipId.ToString("BASE36"),
-            sessionId = sessionId.ToString("BASE36")
-        }, new SessionResource(createdSession, createdSession.Version));
+        return Results.CreatedAtRoute(nameof(FindSessionById), routeParameters.ToRouteValues(sessionId), new SessionResource(createdSession, createdSession.Version));
     }
 
     public static async Task<IResult> ListSessions(
-        ChampionshipId championshipId,
-        EventId eventId,
+        [AsParameters] EventRouteParameters routeParameters,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Events.ExistsAsync([new EventIdSpecification(championshipId, eventId)], cancellationToken))
-        {
-            throw new InvalidEventException(championshipId, eventId);
-        }
+        if (!await objectStore.Events.ExistsAsync([routeParameters.EventIdSpecification()], cancellationToken))
+            throw new InvalidEventException(routeParameters);
 
-        var sessions = await objectStore.Sessions.ListAsync([new EventIdSpecification(championshipId, eventId)], cancellationToken);
-        return Results.Ok(new SessionResourceCollection(championshipId, eventId, sessions.Select(d => new SessionResource(d, d.Version))));
+        var sessions = await objectStore.Sessions.ListAsync([routeParameters.EventIdSpecification()], cancellationToken);
+        return Results.Ok(new SessionResourceCollection(routeParameters, sessions.Select(d => new SessionResource(d, d.Version))));
     }
 
     public static async Task<IResult> FindSessionById(
-        ChampionshipId championshipId,
-        EventId eventId,
-        SessionId sessionId,
+        [AsParameters] SessionRouteParameters routeParameters,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new EventIdSpecification(championshipId, eventId)], cancellationToken))
-        {
-            throw new InvalidChampionshipException(championshipId);
-        }
+        if (!await objectStore.Events.ExistsAsync([routeParameters.EventIdSpecification()], cancellationToken))
+            throw new InvalidEventException(routeParameters);
 
-        var session = await objectStore.Sessions.FindAsync([new SessionIdSpecification(championshipId, eventId, sessionId)], cancellationToken)
-            ?? throw new InvalidSessionException(championshipId, eventId, sessionId);
+        var session = await objectStore.Sessions.FindAsync([routeParameters.SessionIdSpecification()], cancellationToken)
+            ?? throw new InvalidSessionException(routeParameters);
 
         return Results.Ok(new SessionResource(session, session.Version));
     }
 
     public static async Task<IResult> UpdateSessionById(
-        ChampionshipId championshipId,
-        EventId eventId,
-        SessionId sessionId,
+        [AsParameters] SessionRouteParameters routeParameters,
         [FromBody] SessionChangeBody change,
-        [FromHeader(Name = "If-Match")] string version,
+        [FromHeader(Name = "If-Match")] VersionMatchSpecification versionMatchSpecification,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        version = version.Trim('"'); // HTTP header MUST have quotation marks, but we don't want them here
-        var sessionIdSpecification = new SessionIdSpecification(championshipId, eventId, sessionId);
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
-        var session = await transaction.Sessions.FindAsync([sessionIdSpecification], cancellationToken)
-            ?? throw new InvalidSessionException(championshipId, eventId, sessionId);
+        var session = await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification()], cancellationToken)
+            ?? throw new InvalidSessionException(routeParameters);
 
         change.Apply(session.Object);
-        if (await transaction.Sessions.UpdateAsync([sessionIdSpecification, new VersionMatchSpecification(version)], session.Object, cancellationToken) == 0)
+        if (await transaction.Sessions.UpdateAsync([routeParameters.SessionIdSpecification(), versionMatchSpecification], session.Object, cancellationToken) == 0)
         {
             throw new OptimisticConcurrencyException();
         }
 
         await transaction.CommitAsync(cancellationToken);
-        var updatedObject = await objectStore.Sessions.FindAsync([sessionIdSpecification], cancellationToken)
-            ?? throw new InvalidSessionException(championshipId, eventId, sessionId);
+        var updatedObject = await objectStore.Sessions.FindAsync([routeParameters.SessionIdSpecification()], cancellationToken)
+            ?? throw new InvalidSessionException(routeParameters);
         return Results.Ok(new SessionResource(updatedObject, updatedObject.Version));
     }
 
     public static async Task<IResult> UpdateSessionStateById(
-        ChampionshipId championshipId,
-        EventId eventId,
-        SessionId sessionId,
+        [AsParameters] SessionRouteParameters routeParameters,
         [FromBody] SessionStateChangeBody stateChange,
-        [FromHeader(Name = "If-Match")] string version,
+        [FromHeader(Name = "If-Match")] VersionMatchSpecification versionSpecification,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        version = version.Trim('"'); // HTTP header MUST have quotation marks, but we don't want them here
-        var sessionIdSpecification = new SessionIdSpecification(championshipId, eventId, sessionId);
-        var versionSpecification = new VersionMatchSpecification(version);
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
-        var session = await transaction.Sessions.FindAsync([sessionIdSpecification, versionSpecification], cancellationToken)
-            ?? throw new InvalidSessionException(championshipId, eventId, sessionId);
-        var championship = await transaction.Championships.FindAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken)
-            ?? throw new InvalidChampionshipException(championshipId);
+        var session = await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(), versionSpecification], cancellationToken)
+            ?? throw new InvalidSessionException(routeParameters);
+        var championship = await transaction.Championships.FindAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken)
+            ?? throw new InvalidChampionshipException(routeParameters);
 
-        var @event = await transaction.Events.FindAsync([new EventIdSpecification(championshipId, eventId)], cancellationToken)
-            ?? throw new InvalidEventException(championshipId, eventId);
+        var @event = await transaction.Events.FindAsync([routeParameters.EventIdSpecification()], cancellationToken)
+            ?? throw new InvalidEventException(routeParameters);
 
         if (stateChange.State == State.Running)
         {
-            if (!session.Object.PreviousSessionHasFinished)
-                throw new SessionScheduleConflictException(championshipId, eventId, sessionId, @event.Object.Schedule.TakeWhile(s => s != sessionId).Last());
+            if (!session.Object.CanStart())
+                throw new SessionScheduleConflictException(routeParameters, @event.Object.Schedule.TakeWhile(s => s != routeParameters.SessionId).Last());
 
-            var participantDrivers = await transaction.Drivers.ListAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken);
+            var participantDrivers = await transaction.Drivers.ListAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken);
             session.Object.Start(championship.Object.Features, participantDrivers.Select((d, i) => new SessionParticipant(d.Object.DriverId, (ushort)(i + 1), d.Object.Data)).ToImmutableList());
         }
 
         if (stateChange.State == State.Finished)
         {
+            if (!session.Object.CanFinish())
+                throw new InvalidSessionStateException(routeParameters, []);
+
             session.Object.Finish();
 
             var nextSessionId = @event.Object.Schedule
-                .SkipWhile(s => s != sessionId)
+                .SkipWhile(s => s != routeParameters.SessionId)
                 .Skip(1)
                 .FirstOrDefault();
-            var nextSessionIdSpecification = new SessionIdSpecification(championshipId, eventId, nextSessionId);
-            if (nextSessionId != default && await transaction.Sessions.FindAsync([nextSessionIdSpecification], cancellationToken) is ObjectRecord<Session> nextSession)
+
+            if (nextSessionId != default && await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(nextSessionId)], cancellationToken) is ObjectRecord<Session> nextSession)
             {
                 nextSession.Object.PreviousSessionHasFinished = true;
-                await transaction.Sessions.UpdateAsync([nextSessionIdSpecification], nextSession.Object, cancellationToken);
+                await transaction.Sessions.UpdateAsync([routeParameters.SessionIdSpecification(nextSessionId)], nextSession.Object, cancellationToken);
             }
         }
 
-        if (await transaction.Sessions.UpdateAsync([sessionIdSpecification, versionSpecification], session.Object, cancellationToken) == 0)
+        if (await transaction.Sessions.UpdateAsync([routeParameters.SessionIdSpecification(), versionSpecification], session.Object, cancellationToken) == 0)
             throw new OptimisticConcurrencyException();
 
         await transaction.CommitAsync(cancellationToken);
 
-        var updatedObject = await objectStore.Sessions.FindAsync([sessionIdSpecification], cancellationToken)
-            ?? throw new InvalidSessionException(championshipId, eventId, sessionId);
+        var updatedObject = await objectStore.Sessions.FindAsync([routeParameters.SessionIdSpecification()], cancellationToken)
+            ?? throw new InvalidSessionException(routeParameters);
         return Results.Ok(new SessionResource(updatedObject, updatedObject.Version));
     }
 
     public static async Task<IResult> UpdateSessionProgressById(
-        ChampionshipId championshipId,
-        EventId eventId,
-        SessionId sessionId,
+        [AsParameters] SessionRouteParameters routeParameters,
         [FromBody] SessionProgressChangeBody progressChange,
-        [FromHeader(Name = "If-Match")] string matchVersion,
+        [FromHeader(Name = "If-Match")] VersionMatchSpecification versionSpecification,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        matchVersion = matchVersion.Trim('"'); // HTTP header MUST have quotation marks, but we don't want them here
-        var sessionIdSpecification = new SessionIdSpecification(championshipId, eventId, sessionId);
-        var versionSpecification = new VersionMatchSpecification(matchVersion);
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
 
-        (var session, _, _, _) = await transaction.Sessions.FindAsync([sessionIdSpecification, versionSpecification], cancellationToken)
-            ?? throw new InvalidSessionException(championshipId, eventId, sessionId);
+        (var session, _, _, _) = await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(), versionSpecification], cancellationToken)
+            ?? throw new InvalidSessionException(routeParameters);
 
         session.CanProgressToOrFail(progressChange.ElapsedLaps);
-        session.LapResults.TryGetValue(session.ElapsedLaps, out var lastlapResult);
+        session.LapResults.TryGetValue(session.ElapsedLaps, out var lastLapResult);
 
         var lapResults = new List<LapResult>();
         for (var currentElapsedLaps = session.ElapsedLaps; currentElapsedLaps < progressChange.ElapsedLaps; currentElapsedLaps++)
@@ -316,8 +297,8 @@ public static class SessionEndpoints
             var driverScores = new List<(DriverId driverId, TimeSpan lapTime, TimeSpan totalTime)>();
             foreach (var participant in session.Participants)
             {
-                var currentTotalTime = lastlapResult?.Results[participant.DriverId].TotalTime ?? TimeSpan.FromMilliseconds(0);
-                var driverResults = session.Features.Apply(session, participant, lastlapResult, rand).ToArray();
+                var currentTotalTime = lastLapResult?.Results[participant.DriverId].TotalTime ?? TimeSpan.FromMilliseconds(0);
+                var driverResults = session.Features.Apply(session, participant, lastLapResult, rand).ToArray();
                 var lapTime = driverResults.Length != 0 // IEnumerable<T>.Sum fails on empty collections, so use a default in that situation.
                     ? TimeSpan.FromMilliseconds(driverResults.Sum(dr => dr.Result.TotalMilliseconds))
                     : TimeSpan.Zero;
@@ -329,18 +310,18 @@ public static class SessionEndpoints
                 .OrderBy(ds => ds.totalTime)
                 .Aggregate(ImmutableDictionary<DriverId, ParticipantLapResult>.Empty, (current, next) => current.Add(next.driverId, new((ushort)(current.Count + 1), next.totalTime, next.lapTime)));
 
-            lastlapResult = new LapResult(scores);
-            lapResults.Add(lastlapResult);
+            lastLapResult = new LapResult(scores);
+            lapResults.Add(lastLapResult);
         }
 
         session.Progress(progressChange.ElapsedLaps, lapResults);
 
-        if (await transaction.Sessions.UpdateAsync([sessionIdSpecification, versionSpecification], session, cancellationToken) == 0)
+        if (await transaction.Sessions.UpdateAsync([routeParameters.SessionIdSpecification(), versionSpecification], session, cancellationToken) == 0)
             throw new OptimisticConcurrencyException();
 
         await transaction.CommitAsync(cancellationToken);
-        (session, _, _, var version) = await objectStore.Sessions.FindAsync([sessionIdSpecification], cancellationToken)
-            ?? throw new InvalidSessionException(championshipId, eventId, sessionId);
+        (session, _, _, var version) = await objectStore.Sessions.FindAsync([routeParameters.SessionIdSpecification()], cancellationToken)
+            ?? throw new InvalidSessionException(routeParameters);
         return Results.Ok(new SessionResource(session, version));
     }
 }
@@ -349,6 +330,10 @@ public class InvalidSessionStateException(ChampionshipId championshipId, EventId
 {
     const string _errorMessage = "The requested operation is not valid for the specified Session's state.";
     public State[] ValidStates { get; } = validStates;
+
+    public InvalidSessionStateException(SessionRouteParameters routeParameters, State[] validStates)
+        : this(routeParameters.ChampionshipId, routeParameters.EventId, routeParameters.SessionId, validStates)
+    { }
 }
 
 public class InvalidSessionStateChangeException(ChampionshipId championshipId, EventId eventId, SessionId sessionId, State requestedState, State[] validStates) : SessionException(championshipId, eventId, sessionId, _errorMessage, null)
@@ -362,4 +347,8 @@ public class SessionScheduleConflictException(ChampionshipId championshipId, Eve
 {
     const string _errorMessage = "The Session cannot be started while the previous scheduled Session is not yet Finished";
     public SessionId ConflictingSession { get; } = conflictingSession;
+
+    public SessionScheduleConflictException(SessionRouteParameters routeParameters, SessionId conflictingSession)
+        : this(routeParameters.ChampionshipId, routeParameters.EventId, routeParameters.SessionId, conflictingSession)
+    { }
 }

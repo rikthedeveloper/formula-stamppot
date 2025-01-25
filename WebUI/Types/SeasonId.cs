@@ -39,5 +39,7 @@ public readonly record struct SeasonId(long Value) : IEquatable<SeasonId>, ITryP
         };
     }
 
+    public string ToBase36String() => ConvertLongBase36.Encode(Value);
+
     public static implicit operator long(SeasonId value) => value.Value;
 }

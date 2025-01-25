@@ -39,5 +39,7 @@ public readonly record struct EventId(long Value) : IEquatable<EventId>, ITryPar
         };
     }
 
+    public string ToBase36String() => ConvertLongBase36.Encode(Value);
+
     public static implicit operator long(EventId value) => value.Value;
 }

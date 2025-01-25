@@ -9,6 +9,7 @@ using WebUI.Filters;
 using FluentValidation.Results;
 using FluentValidation;
 using EventId = WebUI.Types.EventId;
+using WebUI.Endpoints.Internal;
 
 namespace WebUI.Endpoints;
 
@@ -59,93 +60,85 @@ public static class EventEndpoints
     }
 
     public static async Task<IResult> CreateEvent(
-        ChampionshipId championshipId,
+        [AsParameters] ChampionshipRouteParameters routeParameters,
         EventChangeBody change,
         [FromServices] IObjectStore objectStore,
         [FromServices] GenerateId generateId,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
         EventId @eventId = new(generateId());
-        var @event = new Event(championshipId, @eventId);
+        var @event = new Event(routeParameters.ChampionshipId, @eventId);
         change.Apply(@event);
 
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
         await transaction.Events.InsertAsync(@event, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        var createdEvent = await objectStore.Events.FindAsync([new EventIdSpecification(championshipId, @eventId)], cancellationToken) ?? throw new InvalidEventException(championshipId, @eventId);
-        return Results.CreatedAtRoute(nameof(FindEventById), new
-        {
-            championshipId = championshipId.ToString("BASE36"),
-            @eventId = @eventId.ToString("BASE36")
-        }, new EventResource(createdEvent, createdEvent.Version));
+        var createdEvent = await objectStore.Events.FindAsync([routeParameters.EventIdSpecification(@eventId)], cancellationToken) ?? throw new InvalidEventException(routeParameters, @eventId);
+        return Results.CreatedAtRoute(nameof(FindEventById), routeParameters.ToRouteValues(eventId), new EventResource(createdEvent, createdEvent.Version));
     }
 
     public static async Task<IResult> ListEvents(
-        ChampionshipId championshipId,
+        [AsParameters] ChampionshipRouteParameters routeParameters,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
-        var @events = await objectStore.Events.ListAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken);
-        return Results.Ok(new EventResourceCollection(championshipId, @events.Select(d => new EventResource(d, d.Version))));
+        var @events = await objectStore.Events.ListAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken);
+        return Results.Ok(new EventResourceCollection(routeParameters.ChampionshipId, @events.Select(d => new EventResource(d, d.Version))));
     }
 
     public static async Task<IResult> FindEventById(
-        ChampionshipId championshipId,
-        EventId @eventId,
+        [AsParameters] EventRouteParameters routeParameters,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
-        var @event = await objectStore.Events.FindAsync([new EventIdSpecification(championshipId, @eventId)], cancellationToken)
-            ?? throw new InvalidEventException(championshipId, @eventId);
+        var @event = await objectStore.Events.FindAsync([routeParameters.EventIdSpecification()], cancellationToken)
+            ?? throw new InvalidEventException(routeParameters);
 
         return Results.Ok(new EventResource(@event, @event.Version));
     }
 
     public static async Task<IResult> UpdateEventById(
-        ChampionshipId championshipId,
-        EventId @eventId,
+        [AsParameters] EventRouteParameters routeParameters,
         [FromBody] EventChangeBody change,
-        [FromHeader(Name = "If-Match")] string version,
+        [FromHeader(Name = "If-Match")] VersionMatchSpecification versionMatch,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        version = version.Trim('"'); // HTTP header MUST have quotation marks, but we don't want them here
-
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
-        var @eventIdSpecification = new EventIdSpecification(championshipId, @eventId);
+        var eventIdSpecification = routeParameters.EventIdSpecification();
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
-        var @event = await transaction.Events.FindAsync([@eventIdSpecification], cancellationToken)
-            ?? throw new InvalidEventException(championshipId, @eventId);
+        var @event = await transaction.Events.FindAsync([eventIdSpecification], cancellationToken)
+            ?? throw new InvalidEventException(routeParameters);
 
         change.Apply(@event.Object);
-        if (await transaction.Events.UpdateAsync([@eventIdSpecification, new VersionMatchSpecification(version)], @event.Object, cancellationToken) == 0)
+        if (await transaction.Events.UpdateAsync([eventIdSpecification, versionMatch], @event.Object, cancellationToken) == 0)
         {
             throw new OptimisticConcurrencyException();
         }
 
         await transaction.CommitAsync(cancellationToken);
-        var updatedObject = await objectStore.Events.FindAsync([@eventIdSpecification], cancellationToken)
-            ?? throw new InvalidEventException(championshipId, @eventId);
+        var updatedObject = await objectStore.Events.FindAsync([eventIdSpecification], cancellationToken)
+            ?? throw new InvalidEventException(routeParameters);
         return Results.Ok(new EventResource(updatedObject, updatedObject.Version));
     }
 }

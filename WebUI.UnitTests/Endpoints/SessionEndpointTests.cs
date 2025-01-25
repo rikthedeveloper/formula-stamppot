@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using WebUI.Domain;
+using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints;
 using WebUI.Features;
 using WebUI.Types;
@@ -11,7 +12,7 @@ namespace WebUI.UnitTests.Endpoints;
 public class SessionEndpointTests
 {
     static SessionChangeBody SomeSessionChange => new() { Name = new("SessionEndpointTests"), LapCount = 3 };
-    readonly string versionEtag = EndpointTestsHelpers.WrapEtag(FakeObjectStore.DefaultObjectVersion);
+    readonly ObjectVersion versionEtag = FakeObjectStore.DefaultObjectVersion;
 
     [Fact]
     public async Task CreateSession_Returns_CreatedAtRouteResult()
@@ -24,7 +25,7 @@ public class SessionEndpointTests
         var sessionChange = SomeSessionChange;
 
         // Act
-        var result = await SessionEndpoints.CreateSession(new(1), new(1), sessionChange, objectStore, IdGeneratorHelper.GenerateId);
+        var result = await SessionEndpoints.CreateSession(new(new(1), new(1)), sessionChange, objectStore, IdGeneratorHelper.GenerateId);
 
         // Assert
         var createdAtRouteResult = result.Should().BeOfType<CreatedAtRoute<SessionResource>>().Subject;
@@ -45,7 +46,7 @@ public class SessionEndpointTests
             sessions: sessions);
 
         // Act
-        var result = await SessionEndpoints.ListSessions(new(1), new(1), objectStore);
+        var result = await SessionEndpoints.ListSessions(new(new(1), new(1)), objectStore);
 
         // Assert
         var resourceCollection = result.Should().BeOfType<Ok<SessionResourceCollection>>()
@@ -60,10 +61,11 @@ public class SessionEndpointTests
         var session = Some.Session.ThatIsValid();
         var objectStore = new FakeObjectStore(
             championships: [Some.Championship.ThatIsValid()],
+            events: [Some.Event.ThatIsValid()],
             sessions: [session]);
 
         // Act
-        var result = await SessionEndpoints.FindSessionById(new(1), new(1), new(1), objectStore);
+        var result = await SessionEndpoints.FindSessionById(new(new(1), new(1), new(1)), objectStore);
 
         // Assert
         var sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
@@ -80,7 +82,7 @@ public class SessionEndpointTests
             sessions: [session]);
 
         // Act
-        var result = await SessionEndpoints.UpdateSessionById(new(1), new(1), new(1), SomeSessionChange, versionEtag, objectStore);
+        var result = await SessionEndpoints.UpdateSessionById(new(new(1), new(1), new(1)), SomeSessionChange, new(versionEtag), objectStore);
 
         // Assert
         var sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
@@ -104,10 +106,10 @@ public class SessionEndpointTests
             sessions: [session]);
 
         // Act
-        var result = await SessionEndpoints.UpdateSessionStateById(new(1), new(1), new(1), new SessionStateChangeBody
+        var result = await SessionEndpoints.UpdateSessionStateById(new(new(1), new(1), new(1)), new SessionStateChangeBody
         {
             State = State.Running
-        }, versionEtag, objectStore);
+        }, new(versionEtag), objectStore);
 
         // Assert
         var sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
@@ -134,10 +136,10 @@ public class SessionEndpointTests
             sessions: [session]);
 
         // Act
-        var result = await SessionEndpoints.UpdateSessionStateById(new(1), new(1), new(1), new SessionStateChangeBody
+        var result = await SessionEndpoints.UpdateSessionStateById(new(new(1), new(1), new(1)), new SessionStateChangeBody
         {
             State = State.Finished
-        }, versionEtag, objectStore);
+        }, new(versionEtag), objectStore);
 
         // Assert
         var sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
@@ -165,10 +167,10 @@ public class SessionEndpointTests
             sessions: [session1, session2]);
 
         // Act
-        await SessionEndpoints.UpdateSessionStateById(new(1), new(1), new(1), new SessionStateChangeBody
+        await SessionEndpoints.UpdateSessionStateById(new(new(1), new(1), new(1)), new SessionStateChangeBody
         {
             State = State.Finished
-        }, versionEtag, objectStore);
+        }, new(versionEtag), objectStore);
 
         // Assert
         session2.PreviousSessionHasFinished.Should().BeTrue();
@@ -181,7 +183,7 @@ public class SessionEndpointTests
         var session = Some.Session.ThatIsValid().ThatHasStarted(
             features: [new FlatDriverSkillFeature(true)],
             participants: [
-                new SessionParticipant(new(1), 1, new([new FlatDriverSkillDriverData(5)])), 
+                new SessionParticipant(new(1), 1, new([new FlatDriverSkillDriverData(5)])),
                 new SessionParticipant(new(2), 2, new([new FlatDriverSkillDriverData(3)]))
             ]);
 
@@ -190,10 +192,10 @@ public class SessionEndpointTests
             sessions: [session]);
 
         // Act
-        var result = await SessionEndpoints.UpdateSessionProgressById(new(1), new(1), new(1), new SessionProgressChangeBody
+        var result = await SessionEndpoints.UpdateSessionProgressById(new(new(1), new(1), new(1)), new SessionProgressChangeBody
         {
             ElapsedLaps = 1
-        }, versionEtag, objectStore);
+        }, new(versionEtag), objectStore);
 
         // Assert
         var sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
@@ -219,30 +221,30 @@ public class SessionEndpointTests
         var sessionChange = SomeSessionChange;
 
         // Act
-        var result = await SessionEndpoints.CreateSession(new(1), new(1), sessionChange, objectStore, IdGeneratorHelper.GenerateId);
+        var result = await SessionEndpoints.CreateSession(new(new(1), new(1)), sessionChange, objectStore, IdGeneratorHelper.GenerateId);
         var sessionResource = result.Should().BeOfType<CreatedAtRoute<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
 
-        result = await SessionEndpoints.UpdateSessionStateById(new(1),new(1), sessionResource.SessionId, new SessionStateChangeBody
+        result = await SessionEndpoints.UpdateSessionStateById(new(new(1), new(1), sessionResource.SessionId), new SessionStateChangeBody
         {
             State = State.Running
-        }, sessionResource.Version, objectStore);
+        }, new(sessionResource.Version), objectStore);
 
         sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
 
-        result = await SessionEndpoints.UpdateSessionProgressById(new(1), new(1), sessionResource.SessionId, new SessionProgressChangeBody
+        result = await SessionEndpoints.UpdateSessionProgressById(new(new(1), new(1), sessionResource.SessionId), new SessionProgressChangeBody
         {
             ElapsedLaps = sessionResource.LapCount
-        }, sessionResource.Version, objectStore);
+        }, new(sessionResource.Version), objectStore);
 
         sessionResource = result.Should().BeOfType<Ok<SessionResource>>()
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
 
-        result = await SessionEndpoints.UpdateSessionStateById(new(1), new(1), sessionResource.SessionId, new SessionStateChangeBody
+        result = await SessionEndpoints.UpdateSessionStateById(new(new(1), new(1), sessionResource.SessionId), new SessionStateChangeBody
         {
             State = State.Finished
-        }, sessionResource.Version, objectStore);
+        }, new(sessionResource.Version), objectStore);
 
         // Assert
         sessionResource = result.Should().BeOfType<Ok<SessionResource>>()

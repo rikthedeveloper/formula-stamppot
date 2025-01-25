@@ -39,5 +39,7 @@ public readonly record struct TeamId(long Value) : IEquatable<TeamId>, ITryParse
         };
     }
 
+    public string ToBase36String() => ConvertLongBase36.Encode(Value);
+
     public static implicit operator long(TeamId value) => value.Value;
 }

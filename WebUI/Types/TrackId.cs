@@ -39,5 +39,7 @@ public readonly record struct TrackId(long Value) : IEquatable<TrackId>, ITryPar
         };
     }
 
+    public string ToBase36String() => ConvertLongBase36.Encode(Value);
+
     public static implicit operator long(TrackId value) => value.Value;
 }

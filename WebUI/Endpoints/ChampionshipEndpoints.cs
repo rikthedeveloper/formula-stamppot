@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
+using WebUI.Endpoints.Internal;
 using WebUI.Endpoints.Internal.Specifications;
 using WebUI.Endpoints.Resources;
 using WebUI.Endpoints.Resources.Interfaces;
@@ -82,36 +83,36 @@ public static class ChampionshipEndpoints
     }
 
     public static async Task<IResult> FindChampionshipById(
-        ChampionshipId championshipId,
+        [AsParameters] ChampionshipRouteParameters routeParameters,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        var championship = await objectStore.Championships.FindAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken)
-            ?? throw new InvalidChampionshipException(championshipId);
+        var championship = await objectStore.Championships.FindAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken)
+            ?? throw new InvalidChampionshipException(routeParameters);
 
         return Results.Ok(new ChampionshipResource(championship, championship.Version));
     }
 
     public static async Task<IResult> UpdateChampionshipById(
-        ChampionshipId championshipId,
+        [AsParameters] ChampionshipRouteParameters routeParameters,
         [FromBody] ChampionshipChangeRequestBody change,
         [FromHeader(Name = "If-Match")] ObjectVersion version,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
-        var championship = await transaction.Championships.FindAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken)
-            ?? throw new InvalidChampionshipException(championshipId);
+        var championship = await transaction.Championships.FindAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken)
+            ?? throw new InvalidChampionshipException(routeParameters);
 
         change.Apply(championship);
-        if (await transaction.Championships.UpdateAsync([new ChampionshipIdSpecification(championshipId), new VersionMatchSpecification(version)], championship.Object, cancellationToken) == 0)
+        if (await transaction.Championships.UpdateAsync([routeParameters.ChampionshipIdSpecification(), new VersionMatchSpecification(version)], championship.Object, cancellationToken) == 0)
         {
             throw new OptimisticConcurrencyException();
         }
 
         await transaction.CommitAsync(cancellationToken);
-        var updatedObject = await objectStore.Championships.FindAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken)
-            ?? throw new InvalidChampionshipException(championshipId);
+        var updatedObject = await objectStore.Championships.FindAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken)
+            ?? throw new InvalidChampionshipException(routeParameters);
         return Results.Ok(new ChampionshipResource(updatedObject, updatedObject.Version));
     }
 }

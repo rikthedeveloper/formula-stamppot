@@ -9,6 +9,7 @@ using System.Collections.Immutable;
 using WebUI.Filters;
 using FluentValidation.Results;
 using FluentValidation;
+using WebUI.Endpoints.Internal;
 
 namespace WebUI.Endpoints;
 
@@ -63,93 +64,84 @@ public static class DriverEndpoints
     }
 
     public static async Task<IResult> CreateDriver(
-        ChampionshipId championshipId,
+        [AsParameters] ChampionshipRouteParameters routeParameters,
         DriverChangeBody change,
         [FromServices] IObjectStore objectStore,
         [FromServices] GenerateId generateId,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
         DriverId driverId = new(generateId());
-        var driver = new Driver(championshipId, driverId);
+        var driver = new Driver(routeParameters.ChampionshipId, driverId);
         change.Apply(driver);
 
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
         await transaction.Drivers.InsertAsync(driver, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        var createdDriver = await objectStore.Drivers.FindAsync([new DriverIdSpecification(championshipId, driverId)], cancellationToken) ?? throw new InvalidDriverException(championshipId, driverId);
-        return Results.CreatedAtRoute(nameof(FindDriverById), new
-        {
-            championshipId = championshipId.ToString("BASE36"),
-            driverId = driverId.ToString("BASE36")
-        }, new DriverResource(createdDriver, createdDriver.Version));
+        var createdDriver = await objectStore.Drivers.FindAsync([routeParameters.DriverIdSpecification(driverId)], cancellationToken) ?? throw new InvalidDriverException(routeParameters, driverId);
+        return Results.CreatedAtRoute(nameof(FindDriverById), routeParameters.ToRouteValues(driverId), new DriverResource(createdDriver, createdDriver.Version));
     }
 
     public static async Task<IResult> ListDrivers(
-        ChampionshipId championshipId,
+        [AsParameters] ChampionshipRouteParameters routeParameters,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
-        var drivers = await objectStore.Drivers.ListAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken);
-        return Results.Ok(new DriverResourceCollection(championshipId, drivers.Select(d => new DriverResource(d, d.Version))));
+        var drivers = await objectStore.Drivers.ListAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken);
+        return Results.Ok(new DriverResourceCollection(routeParameters.ChampionshipId, drivers.Select(d => new DriverResource(d, d.Version))));
     }
 
     public static async Task<IResult> FindDriverById(
-        ChampionshipId championshipId,
-        DriverId driverId,
+        [AsParameters] DriverRouteParameters routeParameters,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
-        var driver = await objectStore.Drivers.FindAsync([new DriverIdSpecification(championshipId, driverId)], cancellationToken)
-            ?? throw new InvalidDriverException(championshipId, driverId);
+        var driver = await objectStore.Drivers.FindAsync([routeParameters.DriverIdSpecification()], cancellationToken)
+            ?? throw new InvalidDriverException(routeParameters);
 
         return Results.Ok(new DriverResource(driver, driver.Version));
     }
 
     public static async Task<IResult> UpdateDriverById(
-        ChampionshipId championshipId,
-        DriverId driverId,
+        [AsParameters] DriverRouteParameters routeParameters,
         [FromBody] DriverChangeBody change,
-        [FromHeader(Name = "If-Match")] string version,
+        [FromHeader(Name = "If-Match")] VersionMatchSpecification versionMatch,
         [FromServices] IObjectStore objectStore,
         CancellationToken cancellationToken = default)
     {
-        version = version.Trim('"'); // HTTP header MUST have quotation marks, but we don't want them here
-
-        if (!await objectStore.Championships.ExistsAsync([new ChampionshipIdSpecification(championshipId)], cancellationToken))
+        if (!await objectStore.Championships.ExistsAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken))
         {
-            throw new InvalidChampionshipException(championshipId);
+            throw new InvalidChampionshipException(routeParameters);
         }
 
-        var driverIdSpecification = new DriverIdSpecification(championshipId, driverId);
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
-        var driver = await transaction.Drivers.FindAsync([driverIdSpecification], cancellationToken)
-            ?? throw new InvalidDriverException(championshipId, driverId);
+        var driver = await transaction.Drivers.FindAsync([routeParameters.DriverIdSpecification()], cancellationToken)
+            ?? throw new InvalidDriverException(routeParameters);
 
         change.Apply(driver.Object);
-        if (await transaction.Drivers.UpdateAsync([driverIdSpecification, new VersionMatchSpecification(version)], driver.Object, cancellationToken) == 0)
+        if (await transaction.Drivers.UpdateAsync([routeParameters.DriverIdSpecification(), versionMatch], driver.Object, cancellationToken) == 0)
         {
             throw new OptimisticConcurrencyException();
         }
 
         await transaction.CommitAsync(cancellationToken);
-        var updatedObject = await objectStore.Drivers.FindAsync([driverIdSpecification], cancellationToken)
-            ?? throw new InvalidDriverException(championshipId, driverId);
+        var updatedObject = await objectStore.Drivers.FindAsync([routeParameters.DriverIdSpecification()], cancellationToken)
+            ?? throw new InvalidDriverException(routeParameters);
         return Results.Ok(new DriverResource(updatedObject, updatedObject.Version));
     }
 }
