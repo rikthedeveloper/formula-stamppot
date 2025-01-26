@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Immutable;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints.Internal;
@@ -17,6 +18,7 @@ public class ChampionshipResource(Championship championship, string version) : I
     public string Name { get; } = championship.Name;
     public string Version { get; } = version;
     public FeatureCollection Features { get; } = championship.Features;
+    public IImmutableList<IPointsSystem> PointsSystems { get; } = championship.PointsSystems;
 }
 
 [UseValidator]
@@ -24,16 +26,20 @@ public partial class ChampionshipChangeRequestBody
 {
     public string Name { get; init; } = string.Empty;
     public FeatureCollection Features { get; init; } = new();
+    public IImmutableList<IPointsSystem> PointsSystems { get; init; } = ImmutableList<IPointsSystem>.Empty;
 
     public void Apply(Championship championship)
     {
         championship.Name = Name;
         championship.Features = Features;
+        championship.PointsSystems = PointsSystems;
     }
 
     static partial void ConfigureValidator(AbstractValidator<ChampionshipChangeRequestBody> validator)
     {
         validator.RuleFor(x => x.Name).NotEmpty().Length(3, 100);
+        validator.RuleFor(x => x.Features).NotNull();
+        validator.RuleFor(x => x.PointsSystems).NotNull();
     }
 }
 

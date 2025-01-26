@@ -1,9 +1,11 @@
 ﻿using FluentAssertions;
 using Microsoft.AspNetCore.Http.HttpResults;
+using System.Collections.Immutable;
 using WebUI.Domain;
 using WebUI.Endpoints;
 using WebUI.Endpoints.Resources;
 using WebUI.Features;
+using WebUI.Model.PointsSystems;
 using WebUI.Types;
 using WebUI.UnitTests.Builder;
 using WebUI.UnitTests.Fakes;
@@ -15,7 +17,14 @@ public class ChampionshipEndpointsTests
     public async Task CreateChampionship_Returns_CreatedAtRouteResult()
     {
         // Arrange
-        var championshipChange = new ChampionshipChangeRequestBody { Name = "Test Championship", Features = new([new FlatDriverSkillFeature(true)]) };
+        var championshipChange = new ChampionshipChangeRequestBody
+        {
+            Name = "Test Championship",
+            Features = new([new FlatDriverSkillFeature(true)]),
+            PointsSystems = [
+                new PositionPointsSystem([25, 18, 15])
+            ]
+        };
         var objectStore = new FakeObjectStore();
 
         // Act
@@ -57,6 +66,7 @@ public class ChampionshipEndpointsTests
         // Arrange
         var championship = Some.Championship.ThatIsValid()
             .WithFeature(new FlatDriverSkillFeature(true))
+            .WithPointsSystem(new PositionPointsSystem([]))
             .Build();
 
         var objectStore = new FakeObjectStore([championship]);
@@ -69,6 +79,8 @@ public class ChampionshipEndpointsTests
         var championshipResource = okResult.Value.Should().BeOfType<ChampionshipResource>().Subject;
         championshipResource.ChampionshipId.Should().Be(championship.ChampionshipId);
         championshipResource.Name.Should().Be(championship.Name);
+        championshipResource.Features.Should().ContainSingle();
+        championshipResource.PointsSystems.Should().ContainSingle();
     }
 
     [Fact]

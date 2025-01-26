@@ -14,5 +14,7 @@ internal class ChampionshipBuilder : EntityBuilder<Championship, ChampionshipBui
 
     public ChampionshipBuilder WithFeature(IFeature feature) => With(c => c.Features, new(Get(c => c.Features, new()).Append(feature)));
 
+    public ChampionshipBuilder WithPointsSystem(IPointsSystem pointsSystem) => With(c => c.PointsSystems, [..Get(c => c.PointsSystems, []), pointsSystem]);
+
     public override ChampionshipBuilder ThatIsValid() => WithChampionshipId(1).WithName("Formula 1").With(c => c.Features, new());
 }

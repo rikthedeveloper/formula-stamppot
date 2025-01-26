@@ -1,4 +1,5 @@
-﻿using WebUI.Types;
+﻿using System.Collections.Immutable;
+using WebUI.Types;
 
 namespace WebUI.Domain;
 
@@ -7,4 +8,5 @@ public class Championship(ChampionshipId championshipId)
     public ChampionshipId ChampionshipId { get; } = championshipId;
     public string Name { get; set; } = string.Empty;
     public FeatureCollection Features { get; set; } = new();
+    public IImmutableList<IPointsSystem> PointsSystems { get; set; } = [];
 }

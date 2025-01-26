@@ -54,6 +54,7 @@ public class SessionResource(Session session, string version) : IVersioned
     {
         public ushort Position { get; } = participantResult.Position;
         public TimeSpan TotalTime { get; } = participantResult.TotalTime;
+        public ushort AwardedPoints { get; } = participantResult.AwardedPoints;
     }
 
     public class LapResult(Domain.LapResult lapResult)
@@ -237,7 +238,7 @@ public static class SessionEndpoints
                 throw new SessionScheduleConflictException(routeParameters, @event.Object.Schedule.TakeWhile(s => s != routeParameters.SessionId).Last());
 
             var participantDrivers = await transaction.Drivers.ListAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken);
-            session.Object.Start(championship.Object.Features, [], participantDrivers.Select((d, i) => new SessionParticipant(d.Object.DriverId, (ushort)(i + 1), d.Object.Data)).ToImmutableList());
+            session.Object.Start(championship.Object.Features, championship.Object.PointsSystems, participantDrivers.Select((d, i) => new SessionParticipant(d.Object.DriverId, (ushort)(i + 1), d.Object.Data)).ToImmutableList());
         }
 
         if (stateChange.State == State.Finished)

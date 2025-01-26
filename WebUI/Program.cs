@@ -88,38 +88,6 @@ public class Program
 
         public void Configure(JsonOptions opts)
         {
-            static void IgnoreVersionedFields(JsonTypeInfo typeInfo)
-            {
-                if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type.GetInterface(nameof(IVersioned)) is not null)
-                {
-                    var versionProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(IVersioned.Version), StringComparison.OrdinalIgnoreCase));
-                    typeInfo.Properties.Remove(versionProperty!); // This actually works with a null value despite the annotation.
-                }
-            }
-
-            static void IgnoreValidationPropertyNameFields(JsonTypeInfo typeInfo)
-            {
-                if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type == typeof(ValidationMessage))
-                {
-                    var propertyNameProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(ValidationMessage.PropertyName), StringComparison.OrdinalIgnoreCase));
-                    typeInfo.Properties.Remove(propertyNameProperty!); // This actually works with a null value despite the annotation.
-                }
-            }
-
-            static void ConfigurePointsSystemInheritance(JsonTypeInfo typeInfo)
-            {
-                if (typeInfo.Type == typeof(IPointsSystem))
-                {
-                    typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
-                    {
-                        TypeDiscriminatorPropertyName = "name",
-                        IgnoreUnrecognizedTypeDiscriminators = false,
-                        UnknownDerivedTypeHandling = System.Text.Json.Serialization.JsonUnknownDerivedTypeHandling.FailSerialization,
-                        DerivedTypes = { new(typeof(PositionPointsSystem)) }
-                    };
-                }
-            }
-
             opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<ChampionshipId>("BASE36"));
             opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TrackId>("BASE36"));
             opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TeamId>("BASE36"));
@@ -151,6 +119,42 @@ public class Program
             opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureDriverData>(_featureRegistry, reg => reg.DriverData));
             opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureTrackData>(_featureRegistry, reg => reg.TrackData));
             opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureTeamData>(_featureRegistry, reg => reg.TeamData));
+            opts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
+            {
+                Modifiers = { ConfigurePointsSystemInheritance }
+            };
+        }
+
+        static void IgnoreVersionedFields(JsonTypeInfo typeInfo)
+        {
+            if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type.GetInterface(nameof(IVersioned)) is not null)
+            {
+                var versionProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(IVersioned.Version), StringComparison.OrdinalIgnoreCase));
+                typeInfo.Properties.Remove(versionProperty!); // This actually works with a null value despite the annotation.
+            }
+        }
+
+        static void IgnoreValidationPropertyNameFields(JsonTypeInfo typeInfo)
+        {
+            if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type == typeof(ValidationMessage))
+            {
+                var propertyNameProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(ValidationMessage.PropertyName), StringComparison.OrdinalIgnoreCase));
+                typeInfo.Properties.Remove(propertyNameProperty!); // This actually works with a null value despite the annotation.
+            }
+        }
+
+        static void ConfigurePointsSystemInheritance(JsonTypeInfo typeInfo)
+        {
+            if (typeInfo.Type == typeof(IPointsSystem))
+            {
+                typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
+                {
+                    TypeDiscriminatorPropertyName = "name",
+                    IgnoreUnrecognizedTypeDiscriminators = false,
+                    UnknownDerivedTypeHandling = System.Text.Json.Serialization.JsonUnknownDerivedTypeHandling.FailSerialization,
+                    DerivedTypes = { new(typeof(PositionPointsSystem), nameof(PositionPointsSystem)) }
+                };
+            }
         }
     }
 

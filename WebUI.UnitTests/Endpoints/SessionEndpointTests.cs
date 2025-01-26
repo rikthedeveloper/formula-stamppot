@@ -1,9 +1,11 @@
 ﻿using FluentAssertions;
 using Microsoft.AspNetCore.Http.HttpResults;
+using System.Collections.Immutable;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints;
 using WebUI.Features;
+using WebUI.Model.PointsSystems;
 using WebUI.Types;
 using WebUI.UnitTests.Builder;
 using WebUI.UnitTests.Fakes;
@@ -210,7 +212,9 @@ public class SessionEndpointTests
     {
         // Arrange
         var objectStore = new FakeObjectStore(
-            championships: [Some.Championship.ThatIsValid().WithFeature(new FlatDriverSkillFeature(true))],
+            championships: [Some.Championship.ThatIsValid()
+                .WithFeature(new FlatDriverSkillFeature(true))
+                .WithPointsSystem(new PositionPointsSystem([10, 5]))],
             drivers: [
                 Some.Driver.ThatIsValid().WithDriverId(1).WithData(new FlatDriverSkillDriverData(5)),
                 Some.Driver.ThatIsValid().WithDriverId(2).WithData(new FlatDriverSkillDriverData(7))
@@ -254,5 +258,7 @@ public class SessionEndpointTests
         sessionResource.Participants.Should()
             .AllSatisfy(p => p.Result!.TotalTime.Should().Be(TimeSpan.FromMilliseconds(sessionResource.LapResults.Values.Select(lr => lr.Results[p.DriverId].LapTime).Sum(ts => ts.TotalMilliseconds))));
         sessionResource.Participants.OrderBy(p => p.Result!.Position).Should().BeInAscendingOrder(p => p.Result!.TotalTime);
+        sessionResource.Participants.Single(p => p.Position == 1).Result!.AwardedPoints.Should().Be(10);
+        sessionResource.Participants.Single(p => p.Position == 2).Result!.AwardedPoints.Should().Be(5);
     }
 }
