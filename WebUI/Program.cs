@@ -13,6 +13,7 @@ using WebUI.Features;
 using WebUI.Filters;
 using WebUI.JsonConverters;
 using WebUI.Model.Hypermedia;
+using WebUI.Model.PointsSystems;
 using WebUI.Types;
 using EventId = WebUI.Types.EventId;
 
@@ -105,6 +106,20 @@ public class Program
                 }
             }
 
+            static void ConfigurePointsSystemInheritance(JsonTypeInfo typeInfo)
+            {
+                if (typeInfo.Type == typeof(IPointsSystem))
+                {
+                    typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
+                    {
+                        TypeDiscriminatorPropertyName = "name",
+                        IgnoreUnrecognizedTypeDiscriminators = false,
+                        UnknownDerivedTypeHandling = System.Text.Json.Serialization.JsonUnknownDerivedTypeHandling.FailSerialization,
+                        DerivedTypes = { new(typeof(PositionPointsSystem)) }
+                    };
+                }
+            }
+
             opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<ChampionshipId>("BASE36"));
             opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TrackId>("BASE36"));
             opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TeamId>("BASE36"));
@@ -125,7 +140,7 @@ public class Program
 
             opts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
             {
-                Modifiers = { IgnoreVersionedFields, IgnoreValidationPropertyNameFields }
+                Modifiers = { IgnoreVersionedFields, IgnoreValidationPropertyNameFields, ConfigurePointsSystemInheritance }
             };
         }
 

@@ -18,6 +18,7 @@ public class Session(ChampionshipId championshipId, Types.EventId eventId, Sessi
     public ushort ElapsedLaps { get; private set; } = 0;
 
     public FeatureCollection Features { get; private set; } = new();
+    public IImmutableList<IPointsSystem> PointsSystems { get; private set; } = [];
     public IImmutableList<SessionParticipant> Participants { get; private set; } = [];
     public IImmutableDictionary<ushort, LapResult> LapResults { get; private set; } = ImmutableDictionary<ushort, LapResult>.Empty;
 
@@ -26,13 +27,14 @@ public class Session(ChampionshipId championshipId, Types.EventId eventId, Sessi
     public bool CanStart() => PreviousSessionHasFinished && State == State.NotStarted;
     public bool CanFinish() => State == State.Running && ElapsedLaps == LapCount;
 
-    public void Start(FeatureCollection features, IImmutableList<SessionParticipant> participants)
+    public void Start(FeatureCollection features, IImmutableList<IPointsSystem> pointsSystems, IImmutableList<SessionParticipant> participants)
     {
         if (!CanStart())
             throw new InvalidSessionStateChangeException(ChampionshipId, EventId, SessionId, State.Running, [State.Finished]);
 
         State = State.Running;
         Features = features;
+        PointsSystems = pointsSystems;
         Participants = participants;
     }
 
@@ -65,7 +67,8 @@ public class Session(ChampionshipId championshipId, Types.EventId eventId, Sessi
         foreach (var participant in Participants)
         {
             var participantLapResult = finalLapResult.Results[participant.DriverId];
-            participant.Result = new SessionResult(participantLapResult.Position, participantLapResult.TotalTime);
+            var awardedPoints = ushort.CreateTruncating(PointsSystems.Sum(ps => ps.GetPoints(participantLapResult, LapResults)));
+            participant.Result = new SessionResult(participantLapResult.Position, participantLapResult.TotalTime, awardedPoints);
         }
     }
 }
@@ -87,10 +90,11 @@ public class SessionParticipant(DriverId driverId, ushort startingPosition, Feat
     public FeatureDataCollection<IFeatureDriverData> Data { get; } = data;
 }
 
-public class SessionResult(ushort position, TimeSpan totalTime)
+public class SessionResult(ushort position, TimeSpan totalTime, ushort awardedPoints)
 {
     public ushort Position { get; } = position;
     public TimeSpan TotalTime { get; } = totalTime;
+    public ushort AwardedPoints { get; set; } = awardedPoints;
 }
 
 public class LapResult(IImmutableDictionary<DriverId, ParticipantLapResult> results)
