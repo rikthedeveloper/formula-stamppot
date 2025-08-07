@@ -20,6 +20,12 @@ public class FakeTransaction : IObjectTransaction
     public IObjectCollection<Event> Events { get; private set; }
     public IObjectCollection<Session> Sessions { get; private set; }
 
+    IReadOnlyObjectCollection<Championship> IReadOnlyObjectStore.Championships => Championships;
+    IReadOnlyObjectCollection<Track> IReadOnlyObjectStore.Tracks => Tracks;
+    IReadOnlyObjectCollection<Driver> IReadOnlyObjectStore.Drivers => Drivers;
+    IReadOnlyObjectCollection<Event> IReadOnlyObjectStore.Events => Events;
+    IReadOnlyObjectCollection<Session> IReadOnlyObjectStore.Sessions => Sessions;
+
     public Task CommitAsync(CancellationToken cancellationToken = default)
     {
         _objectStore.Championships = new FakeObjectCollection<Championship>(Championships.ListAsync(cancellationToken).Result);

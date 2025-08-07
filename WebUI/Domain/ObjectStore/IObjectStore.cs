@@ -1,22 +1,26 @@
 ﻿namespace WebUI.Domain.ObjectStore;
 
-public interface IObjectStore
+public interface IReadOnlyObjectStore
 {
     IReadOnlyObjectCollection<Championship> Championships { get; }
     IReadOnlyObjectCollection<Track> Tracks { get; }
     IReadOnlyObjectCollection<Driver> Drivers { get; }
     IReadOnlyObjectCollection<Event> Events { get; }
     IReadOnlyObjectCollection<Session> Sessions { get; }
+}
+
+public interface IObjectStore : IReadOnlyObjectStore
+{
     Task<IObjectTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
 }
 
-public interface IObjectTransaction : IDisposable, IAsyncDisposable
+public interface IObjectTransaction : IReadOnlyObjectStore, IDisposable, IAsyncDisposable
 {
-    IObjectCollection<Championship> Championships { get; }
-    IObjectCollection<Track> Tracks { get; }
-    IObjectCollection<Driver> Drivers { get; }
-    IObjectCollection<Event> Events { get; }
-    IObjectCollection<Session> Sessions { get; }
+    new IObjectCollection<Championship> Championships { get; }
+    new IObjectCollection<Track> Tracks { get; }
+    new IObjectCollection<Driver> Drivers { get; }
+    new IObjectCollection<Event> Events { get; }
+    new IObjectCollection<Session> Sessions { get; }
     Task CommitAsync(CancellationToken cancellationToken = default);
     Task RollbackAsync(CancellationToken cancellationToken = default);
 }

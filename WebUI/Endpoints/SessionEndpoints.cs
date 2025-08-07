@@ -1,8 +1,6 @@
 ﻿using FluentValidation;
-using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Immutable;
-using System.Text.Json.Serialization;
 using WebUI.Domain;
 using WebUI.Domain.ObjectStore;
 using WebUI.Endpoints.Internal;
@@ -37,11 +35,9 @@ public class SessionResource(Session session, string version) : IVersioned
     public State State { get; } = session.State;
     public IImmutableList<SessionParticipant> Participants { get; } = session.Participants.Select(sp => new SessionParticipant(sp)).ToImmutableList();
     public FeatureCollection Features { get; } = session.Features;
+    public IStartingOrderStrategy StartingOrderStrategy { get; } = session.StartingOrderStrategy;
     public ushort ElapsedLaps { get; } = session.ElapsedLaps;
     public IImmutableDictionary<ushort, LapResult> LapResults { get; } = session.LapResults.ToImmutableDictionary(kvp => kvp.Key, kvp => new LapResult(kvp.Value));
-
-    [JsonIgnore]
-    public bool IsPreviousSessionFinished { get; } = session.PreviousSessionHasFinished;
 
     public class SessionParticipant(Domain.SessionParticipant sessionParticipant)
     {
@@ -67,7 +63,6 @@ public class SessionResource(Session session, string version) : IVersioned
         public ushort Position { get; } = participantLapResult.Position;
         public TimeSpan TotalTime { get; } = participantLapResult.TotalTime;
         public TimeSpan LapTime { get; } = participantLapResult.LapTime;
-
     }
 }
 
@@ -90,35 +85,25 @@ public partial class SessionChangeBody
     }
 }
 
-public class SessionProgressChangeBody : Filters.IValidator
+[UseValidator]
+public partial class SessionProgressChangeBody
 {
     public ushort ElapsedLaps { get; set; } = 0;
 
-    static readonly Validator _validator = new();
-    public async Task<ValidationResult> ValidateAsync() => await _validator.ValidateAsync(this);
-
-    class Validator : AbstractValidator<SessionProgressChangeBody>
+    static partial void ConfigureValidator(AbstractValidator<SessionProgressChangeBody> validator)
     {
-        public Validator()
-        {
-            RuleFor(d => d.ElapsedLaps).GreaterThan((ushort)0);
-        }
+        validator.RuleFor(d => d.ElapsedLaps).GreaterThan((ushort)0);
     }
 }
 
-public class SessionStateChangeBody : Filters.IValidator
+[UseValidator]
+public partial class SessionStateChangeBody
 {
     public State State { get; set; } = State.NotStarted;
 
-    static readonly Validator _validator = new();
-    public async Task<ValidationResult> ValidateAsync() => await _validator.ValidateAsync(this);
-
-    class Validator : AbstractValidator<SessionStateChangeBody>
+    static partial void ConfigureValidator(AbstractValidator<SessionStateChangeBody> validator)
     {
-        public Validator()
-        {
-            RuleFor(d => d.State).IsInEnum();
-        }
+        validator.RuleFor(d => d.State).IsInEnum();
     }
 }
 
@@ -153,8 +138,6 @@ public static class SessionEndpoints
         SessionId sessionId = new(generateId());
         var session = new Session(routeParameters.ChampionshipId, routeParameters.EventId, sessionId);
         change.Apply(session);
-        var previousSession = await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(@event.Object.Schedule.LastOrDefault())], cancellationToken);
-        session.PreviousSessionHasFinished = previousSession is not { Object.State: not State.Finished };
         @event.Object.Schedule = @event.Object.Schedule.Add(sessionId);
 
         await transaction.Sessions.InsertAsync(session, cancellationToken);
@@ -224,43 +207,52 @@ public static class SessionEndpoints
         CancellationToken cancellationToken = default)
     {
         using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
-        var session = await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(), versionSpecification], cancellationToken)
+        Session session = await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(), versionSpecification], cancellationToken)
             ?? throw new InvalidSessionException(routeParameters);
-        var championship = await transaction.Championships.FindAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken)
+        Championship championship = await transaction.Championships.FindAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken)
             ?? throw new InvalidChampionshipException(routeParameters);
 
-        var @event = await transaction.Events.FindAsync([routeParameters.EventIdSpecification()], cancellationToken)
+        Event @event = await transaction.Events.FindAsync([routeParameters.EventIdSpecification()], cancellationToken)
             ?? throw new InvalidEventException(routeParameters);
 
         if (stateChange.State == State.Running)
         {
-            if (!session.Object.CanStart())
-                throw new SessionScheduleConflictException(routeParameters, @event.Object.Schedule.TakeWhile(s => s != routeParameters.SessionId).Last());
-
-            var participantDrivers = await transaction.Drivers.ListAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken);
-            session.Object.Start(championship.Object.Features, championship.Object.PointsSystems, participantDrivers.Select((d, i) => new SessionParticipant(d.Object.DriverId, (ushort)(i + 1), d.Object.Data)).ToImmutableList());
-        }
-
-        if (stateChange.State == State.Finished)
-        {
-            if (!session.Object.CanFinish())
-                throw new InvalidSessionStateException(routeParameters, []);
-
-            session.Object.Finish();
-
-            var nextSessionId = @event.Object.Schedule
+            var previousSessionId = @event.Schedule
+                .Reverse()
                 .SkipWhile(s => s != routeParameters.SessionId)
                 .Skip(1)
                 .FirstOrDefault();
 
-            if (nextSessionId != default && await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(nextSessionId)], cancellationToken) is ObjectRecord<Session> nextSession)
+            Session? previousSession = await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(previousSessionId)], cancellationToken);
+            if (previousSession is not null and { State: not State.Finished })
+                throw new SessionScheduleConflictException(routeParameters, @event.Schedule.TakeWhile(s => s != routeParameters.SessionId).Last());
+
+            var participantDrivers = await transaction.Drivers.ListAsync([routeParameters.ChampionshipIdSpecification()], cancellationToken);
+            session.Start(
+                features: championship.Features,
+                pointsSystems: championship.PointsSystems,
+                participants: await session.StartingOrderStrategy.GetOrderedParticipants(
+                    session,
+                    participantDrivers.Select(d => d.Object),
+                    async spec => await transaction.Sessions.FindAsync([spec])));
+        }
+
+        if (stateChange.State == State.Finished)
+        {
+            session.Finish();
+
+            var nextSessionId = @event.Schedule
+                .SkipWhile(s => s != routeParameters.SessionId)
+                .Skip(1)
+                .FirstOrDefault();
+
+            if (nextSessionId != default && await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(nextSessionId)], cancellationToken) is { Object: Session nextSession })
             {
-                nextSession.Object.PreviousSessionHasFinished = true;
-                await transaction.Sessions.UpdateAsync([routeParameters.SessionIdSpecification(nextSessionId)], nextSession.Object, cancellationToken);
+                await transaction.Sessions.UpdateAsync([routeParameters.SessionIdSpecification(nextSessionId)], nextSession, cancellationToken);
             }
         }
 
-        if (await transaction.Sessions.UpdateAsync([routeParameters.SessionIdSpecification(), versionSpecification], session.Object, cancellationToken) == 0)
+        if (await transaction.Sessions.UpdateAsync([routeParameters.SessionIdSpecification(), versionSpecification], session, cancellationToken) == 0)
             throw new OptimisticConcurrencyException();
 
         await transaction.CommitAsync(cancellationToken);
@@ -282,7 +274,6 @@ public static class SessionEndpoints
         (var session, _, _, _) = await transaction.Sessions.FindAsync([routeParameters.SessionIdSpecification(), versionSpecification], cancellationToken)
             ?? throw new InvalidSessionException(routeParameters);
 
-        session.CanProgressToOrFail(progressChange.ElapsedLaps);
         session.LapResults.TryGetValue(session.ElapsedLaps, out var lastLapResult);
 
         var lapResults = new List<LapResult>();

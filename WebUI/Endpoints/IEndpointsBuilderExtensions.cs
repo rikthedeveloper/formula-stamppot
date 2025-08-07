@@ -13,9 +13,9 @@ public static class IEndpointsBuilderExtensions
             validationMessages = ex.Errors.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
         });
 
-    public static void MapFormulaApi(this IEndpointRouteBuilder endpoints, IWebHostEnvironment environment)
+    public static void MapFormulaApi(this IEndpointRouteBuilder endpoints, bool useDetailedExceptions)
     {
-        var exceptionFilter = new ExceptionHandlerFilter(environment.IsDevelopment())
+        var exceptionFilter = new ExceptionHandlerFilter(useDetailedExceptions)
             .AddStatusCodeTitle(HttpStatusCode.NotFound, "The specified resource was not found.")
             .AddStatusCodeTitle(HttpStatusCode.Conflict, "The request could not be completed due to a conflict with the current state of the target resource.")
             .AddStatusCodeTitle(HttpStatusCode.UnprocessableEntity, "The request data was invalid.")

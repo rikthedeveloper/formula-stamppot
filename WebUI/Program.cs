@@ -14,7 +14,9 @@ using WebUI.Filters;
 using WebUI.JsonConverters;
 using WebUI.Model.Hypermedia;
 using WebUI.Model.PointsSystems;
+using WebUI.Model.StartingOrderStrategies;
 using WebUI.Types;
+using WebUI.Types.Internal;
 using EventId = WebUI.Types.EventId;
 
 namespace WebUI;
@@ -26,74 +28,73 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        var startup = new Startup(builder.Configuration, builder.Environment);
-        startup.ConfigureServices(builder.Services);
-        var app = builder.Build();
-        startup.Configure(app, app.Environment);
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddSingleton(sp => TimeProvider.System);
+        builder.Services.AddIdGen(1);
+        builder.Services.AddHypermediaUriGenerator();
+        builder.Services.AddSingleton<GenerateId>(sp => sp.GetRequiredService<IIdGenerator<long>>().CreateId);
+        builder.Services.AddObjectStore()
+            .UseInMemoryDb()
+            .ConfigureCollections(ConfigureCollection.ConfigureAll);
+
+        builder.Services.ConfigureOptions<ConfigureJsonOptions>();
+
+        builder.Services.ConfigureFeatures()
+            .Register<FlatDriverSkillFeature>();
+
+        builder.Services.AddEndpointsApiExplorer().AddSwaggerGen();
+
+        var app = builder.Build(); 
+        
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseDeveloperExceptionPage();
+        }
+        else
+        {
+            app.UseExceptionHandler("/Error");
+            app.UseHsts();
+        }
+
+        app.UseHttpsRedirection();
+        //app.UseStaticFiles();
+
+        app.Map("/api", api =>
+        {
+            api.UseSwagger();
+            api.UseSwaggerUI(configure => configure.RoutePrefix = "swagger");
+            api.UseReDoc(configure => configure.RoutePrefix = "redoc");
+
+            api.UseRouting().UseEndpoints(endpoints => endpoints.MapFormulaApi(app.Environment.IsDevelopment()));
+        });
+
         app.Run();
     }
 
-    class Startup(IConfiguration configuration, IWebHostEnvironment environment)
-    {
-        public IConfiguration Configuration { get; } = configuration;
-        public IWebHostEnvironment Environment { get; } = environment;
-
-        public void ConfigureServices(IServiceCollection services)
-        {
-            services.AddHttpContextAccessor();
-            services.AddSingleton(sp => TimeProvider.System);
-            services.AddIdGen(1);
-            services.AddHypermediaUriGenerator();
-            services.AddSingleton<GenerateId>(sp => sp.GetRequiredService<IIdGenerator<long>>().CreateId);
-            services.AddObjectStore()
-                .UseInMemoryDb()
-                .ConfigureCollections(ConfigureCollection.ConfigureAll);
-
-            services.ConfigureOptions<ConfigureHttpJsonOptions>();
-
-            services.ConfigureFeatures()
-                .Register<FlatDriverSkillFeature>();
-
-            services.AddEndpointsApiExplorer().AddSwaggerGen();
-        }
-
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-        {
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
-            else
-            {
-                app.UseExceptionHandler("/Error");
-                app.UseHsts();
-            }
-
-            app.UseHttpsRedirection();
-            //app.UseStaticFiles();
-
-            app.Map("/api", api =>
-            {
-                api.UseSwagger();
-                api.UseSwaggerUI(configure => configure.RoutePrefix = "swagger");
-                api.UseReDoc(configure => configure.RoutePrefix = "redoc");
-
-                api.UseRouting().UseEndpoints(endpoints => endpoints.MapFormulaApi(Environment));
-            });
-        }
-    }
-    private class ConfigureHttpJsonOptions(FeatureRegistry featureRegistry) : IConfigureOptions<JsonOptions>, IConfigureOptions<ObjectStoreJsonOptions>
+    class ConfigureJsonOptions(FeatureRegistry featureRegistry) : IConfigureOptions<JsonOptions>, IConfigureOptions<ObjectStoreJsonOptions>
     {
         readonly FeatureRegistry _featureRegistry = featureRegistry;
+        readonly Action<JsonTypeInfo> _configurePointsSystemInheritance = ConfigurePolymorphicSerialization<IPointsSystem>(derivedTypes: [
+            new(typeof(PositionPointsSystem), nameof(PositionPointsSystem))
+        ]);
 
+        readonly Action<JsonTypeInfo> _configureStartingOrderInheritance = ConfigurePolymorphicSerialization<IStartingOrderStrategy>(derivedTypes: [
+            new(typeof(NoopStartingOrderStrategy), nameof(NoopStartingOrderStrategy)),
+            new(typeof(OtherSessionResultsStartingOrderStrategy), nameof(OtherSessionResultsStartingOrderStrategy))
+        ]);
+
+        /// <summary>
+        /// Configures the JSON serialization options for the HTTP API.
+        /// </summary>
         public void Configure(JsonOptions opts)
         {
-            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<ChampionshipId>("BASE36"));
-            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TrackId>("BASE36"));
-            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<TeamId>("BASE36"));
-            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<DriverId>("BASE36"));
-            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<EventId>("BASE36"));
-            opts.SerializerOptions.Converters.Add(new ParseAndFormatJsonConverter<SessionId>("BASE36"));
+            // Serialize IDs to Base36 strings because JavaScript cannot handle 64-bit integers properly.
+            opts.SerializerOptions.Converters.Add(new Base36IdConverter<ChampionshipId>());
+            opts.SerializerOptions.Converters.Add(new Base36IdConverter<TrackId>());
+            opts.SerializerOptions.Converters.Add(new Base36IdConverter<TeamId>());
+            opts.SerializerOptions.Converters.Add(new Base36IdConverter<DriverId>());
+            opts.SerializerOptions.Converters.Add(new Base36IdConverter<EventId>());
+            opts.SerializerOptions.Converters.Add(new Base36IdConverter<SessionId>());
 
             opts.SerializerOptions.Converters.Add(new DistanceJsonConverter());
             opts.SerializerOptions.Converters.Add(new ColorJsonConverter());
@@ -108,10 +109,18 @@ public class Program
 
             opts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
             {
-                Modifiers = { IgnoreVersionedFields, IgnoreValidationPropertyNameFields, ConfigurePointsSystemInheritance }
+                Modifiers = {
+                    IgnoreVersionedFields,
+                    IgnoreValidationPropertyNameFields,
+                    _configurePointsSystemInheritance,
+                    _configureStartingOrderInheritance
+                }
             };
         }
 
+        /// <summary>
+        /// Configures the JSON serialization options for the ObjectStore.
+        /// </summary>
         public void Configure(ObjectStoreJsonOptions opts)
         {
             opts.SerializerOptions.Converters.Add(new DistanceJsonConverter());
@@ -121,7 +130,10 @@ public class Program
             opts.SerializerOptions.Converters.Add(new FeatureDataCollectionJsonConverter<IFeatureTeamData>(_featureRegistry, reg => reg.TeamData));
             opts.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
             {
-                Modifiers = { ConfigurePointsSystemInheritance }
+                Modifiers = {
+                    _configurePointsSystemInheritance,
+                    _configureStartingOrderInheritance
+                }
             };
         }
 
@@ -130,7 +142,8 @@ public class Program
             if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type.GetInterface(nameof(IVersioned)) is not null)
             {
                 var versionProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(IVersioned.Version), StringComparison.OrdinalIgnoreCase));
-                typeInfo.Properties.Remove(versionProperty!); // This actually works with a null value despite the annotation.
+                if (versionProperty is not null)
+                    typeInfo.Properties.Remove(versionProperty);
             }
         }
 
@@ -139,23 +152,33 @@ public class Program
             if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type == typeof(ValidationMessage))
             {
                 var propertyNameProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(ValidationMessage.PropertyName), StringComparison.OrdinalIgnoreCase));
-                typeInfo.Properties.Remove(propertyNameProperty!); // This actually works with a null value despite the annotation.
+                if (propertyNameProperty is not null)
+                    typeInfo.Properties.Remove(propertyNameProperty);
             }
         }
 
-        static void ConfigurePointsSystemInheritance(JsonTypeInfo typeInfo)
+        static Action<JsonTypeInfo> ConfigurePolymorphicSerialization<T>(
+            string typeDiscriminatorPropertyName = "name",
+            IEnumerable<JsonDerivedType>? derivedTypes = null) => typeInfo =>
         {
-            if (typeInfo.Type == typeof(IPointsSystem))
+            if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type != typeof(T))
+                return;
+
+            typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
             {
-                typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
-                {
-                    TypeDiscriminatorPropertyName = "name",
-                    IgnoreUnrecognizedTypeDiscriminators = false,
-                    UnknownDerivedTypeHandling = System.Text.Json.Serialization.JsonUnknownDerivedTypeHandling.FailSerialization,
-                    DerivedTypes = { new(typeof(PositionPointsSystem), nameof(PositionPointsSystem)) }
-                };
-            }
-        }
+                TypeDiscriminatorPropertyName = typeDiscriminatorPropertyName,
+                IgnoreUnrecognizedTypeDiscriminators = false,
+                UnknownDerivedTypeHandling = System.Text.Json.Serialization.JsonUnknownDerivedTypeHandling.FailSerialization
+            };
+
+            if (derivedTypes is not null)
+                foreach (var derivedType in derivedTypes)
+                    typeInfo.PolymorphismOptions.DerivedTypes.Add(derivedType);
+        };
+
+        class Base36IdConverter<TId>()
+            : ParseAndFormatJsonConverter<TId>("BASE36") where TId : IFormattable, ITryParseable<string, TId>
+        { }
     }
 
     static class ConfigureCollection

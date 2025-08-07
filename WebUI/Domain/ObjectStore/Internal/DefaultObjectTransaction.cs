@@ -12,15 +12,22 @@ public class DefaultObjectTransaction(
     bool _isCommitted = false;
 
     IObjectCollection<Championship>? _championships;
-    public IObjectCollection<Championship> Championships => _championships ??= CreateCollection<Championship>();
     IObjectCollection<Track>? _tracks;
-    public IObjectCollection<Track> Tracks => _tracks ??= CreateCollection<Track>();
     IObjectCollection<Driver>? _drivers;
-    public IObjectCollection<Driver> Drivers => _drivers ??= CreateCollection<Driver>();
     IObjectCollection<Event>? _events;
-    public IObjectCollection<Event> Events => _events ??= CreateCollection<Event>();
     IObjectCollection<Session>? _sessions;
+
+    public IObjectCollection<Championship> Championships => _championships ??= CreateCollection<Championship>();
+    public IObjectCollection<Track> Tracks => _tracks ??= CreateCollection<Track>();
+    public IObjectCollection<Driver> Drivers => _drivers ??= CreateCollection<Driver>();
+    public IObjectCollection<Event> Events => _events ??= CreateCollection<Event>();
     public IObjectCollection<Session> Sessions => _sessions ??= CreateCollection<Session>();
+
+    IReadOnlyObjectCollection<Championship> IReadOnlyObjectStore.Championships => Championships;
+    IReadOnlyObjectCollection<Track> IReadOnlyObjectStore.Tracks => Tracks;
+    IReadOnlyObjectCollection<Driver> IReadOnlyObjectStore.Drivers => Drivers;
+    IReadOnlyObjectCollection<Event> IReadOnlyObjectStore.Events => Events;
+    IReadOnlyObjectCollection<Session> IReadOnlyObjectStore.Sessions => Sessions;
 
     public async Task CommitAsync(CancellationToken cancellationToken)
     {

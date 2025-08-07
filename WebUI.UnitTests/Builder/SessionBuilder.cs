@@ -47,7 +47,15 @@ internal class SessionBuilder : EntityBuilder<Session, SessionBuilder>
         return this;
     }
 
+    /// <summary>
+    /// Generates a <see cref="Session"/> with:<br/>
+    /// - <see cref="Session.ChampionshipId"/>= 1<br/>
+    /// - <see cref="Session.EventId"/> = 1<br/>
+    /// - <see cref="Session.SessionId"/> = 1<br/>
+    /// - <see cref="Session.Name"/> = "Test Session"<br/>
+    /// - <see cref="Session.PreviousSessionHasFinished"/> = true<br/>
+    /// - <see cref="Session.LapCount"/> = 1
+    /// </summary>
     public override SessionBuilder ThatIsValid() => WithChampionshipId(1).OfEvent(1).WithSessionId(1).WithName("Test Session")
-        .With(s => s.PreviousSessionHasFinished, true)
         .With<ushort>(s => s.LapCount, 1);
 }

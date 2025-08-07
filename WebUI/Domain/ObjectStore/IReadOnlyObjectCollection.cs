@@ -1,4 +1,5 @@
 ﻿using SqlKata;
+using System.Diagnostics.CodeAnalysis;
 
 namespace WebUI.Domain.ObjectStore;
 
@@ -32,9 +33,11 @@ public record class ObjectRecord<TObject>(
     DateTimeOffset Created,
     DateTimeOffset Updated,
     ObjectVersion Version) : ObjectRecord(Created, Updated, Version)
+    where TObject : class
 {
-    public static implicit operator TObject(ObjectRecord<TObject> objectRecord)
-        => objectRecord.Object;
+    [return:NotNullIfNotNull(nameof(objectRecord))]
+    public static implicit operator TObject?(ObjectRecord<TObject>? objectRecord)
+        => objectRecord?.Object;
 }
 
 public interface ISpecification

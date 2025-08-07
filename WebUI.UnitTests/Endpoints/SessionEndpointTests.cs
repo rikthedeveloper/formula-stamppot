@@ -121,6 +121,11 @@ public class SessionEndpointTests
         sessionResource.Participants.Should().HaveCount(2);
     }
 
+    public async Task StartSessionById_Uses_StartingOrderStrategy_Correctly()
+    {
+
+    }
+
     [Fact]
     public async Task FinishSessionById_Returns_OkResult_With_SessionResource()
     {
@@ -148,34 +153,6 @@ public class SessionEndpointTests
             .Which.Value.Should().BeOfType<SessionResource>().Subject;
         sessionResource.SessionId.Should().Be(new SessionId(1));
         sessionResource.State.Should().Be(State.Finished);
-    }
-
-    [Fact]
-    public async Task FinishSessionById_SetsSessionFinished_OnNextSession()
-    {
-        // Arrange
-        var session1 = Some.Session.ThatIsValid().ThatHasStarted(
-            features: [new FlatDriverSkillFeature(true)],
-            participants: [
-                new SessionParticipant(new(1), 1, new([new FlatDriverSkillDriverData(5)])),
-                new SessionParticipant(new(2), 2, new([new FlatDriverSkillDriverData(3)]))
-            ]).ThatHasProgressedToTheEnd().Build();
-
-        var session2 = Some.Session.ThatIsValid().WithSessionId(2).Build();
-
-        var objectStore = new FakeObjectStore(
-            championships: [Some.Championship.ThatIsValid().WithChampionshipId(1)],
-            events: [Some.Event.ThatIsValid().WithSchedule(session1.SessionId, session2.SessionId)],
-            sessions: [session1, session2]);
-
-        // Act
-        await SessionEndpoints.UpdateSessionStateById(new(new(1), new(1), new(1)), new SessionStateChangeBody
-        {
-            State = State.Finished
-        }, new(versionEtag), objectStore);
-
-        // Assert
-        session2.PreviousSessionHasFinished.Should().BeTrue();
     }
 
     [Fact]

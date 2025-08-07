@@ -19,16 +19,17 @@ public class FakeObjectStore : IObjectStore
         Sessions = new FakeObjectCollection<Session>(ConvertToRecords(sessions ?? []));
     }
 
-    IReadOnlyObjectCollection<Championship> IObjectStore.Championships => Championships;
     public IObjectCollection<Championship> Championships { get; set; }
-    IReadOnlyObjectCollection<Track> IObjectStore.Tracks => Tracks;
     public IObjectCollection<Track> Tracks { get; set; }
-    IReadOnlyObjectCollection<Driver> IObjectStore.Drivers => Drivers;
     public IObjectCollection<Driver> Drivers { get; set; }
-    IReadOnlyObjectCollection<Event> IObjectStore.Events => Events;
     public IObjectCollection<Event> Events { get; set; }
-    IReadOnlyObjectCollection<Session> IObjectStore.Sessions => Sessions;
     public IObjectCollection<Session> Sessions { get; set; }
+
+    IReadOnlyObjectCollection<Championship> IReadOnlyObjectStore.Championships => Championships;
+    IReadOnlyObjectCollection<Track> IReadOnlyObjectStore.Tracks => Tracks;
+    IReadOnlyObjectCollection<Driver> IReadOnlyObjectStore.Drivers => Drivers;
+    IReadOnlyObjectCollection<Event> IReadOnlyObjectStore.Events => Events;
+    IReadOnlyObjectCollection<Session> IReadOnlyObjectStore.Sessions => Sessions;
 
     public Task<IObjectTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
@@ -37,5 +38,6 @@ public class FakeObjectStore : IObjectStore
     }
 
     static IEnumerable<ObjectRecord<T>> ConvertToRecords<T>(IEnumerable<T> objects)
+        where T : class
         => objects.Select(obj => new ObjectRecord<T>(obj, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, new ObjectVersion("1")));
 }

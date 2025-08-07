@@ -41,6 +41,17 @@ public partial class EventChangeBody
     }
 }
 
+[UseValidator]
+public partial class EventStateChangeBody
+{
+    public State State { get; init; }
+
+    static partial void ConfigureValidator(AbstractValidator<EventStateChangeBody> validator)
+    {
+        validator.RuleFor(x => x.State).IsInEnum();
+    }
+}
+
 public static class EventEndpoints
 {
     public static RouteGroupBuilder MapEvents(this IEndpointRouteBuilder endpoints)
@@ -126,6 +137,42 @@ public static class EventEndpoints
 
         change.Apply(@event.Object);
         if (await transaction.Events.UpdateAsync([eventIdSpecification, versionMatch], @event.Object, cancellationToken) == 0)
+        {
+            throw new OptimisticConcurrencyException();
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        var updatedObject = await objectStore.Events.FindAsync([eventIdSpecification], cancellationToken)
+            ?? throw new InvalidEventException(routeParameters);
+        return Results.Ok(new EventResource(updatedObject, updatedObject.Version));
+    }
+
+    public static async Task<IResult> UpdateEventStateById(
+        [AsParameters] EventRouteParameters routeParameters,
+        [FromBody] EventStateChangeBody change,
+        [FromHeader(Name = "If-Match")] VersionMatchSpecification versionMatch,
+        [FromServices] IObjectStore objectStore,
+        CancellationToken cancellationToken = default)
+    {
+        var eventIdSpecification = routeParameters.EventIdSpecification();
+        using var transaction = await objectStore.BeginTransactionAsync(cancellationToken);
+        Event @event = await transaction.Events.FindAsync([eventIdSpecification], cancellationToken)
+            ?? throw new InvalidEventException(routeParameters);
+
+        if (change.State == State.Running)
+        {
+            @event.Start();
+        }
+        else if (change.State == State.Finished)
+        {
+            @event.Finish([]);
+        }
+        else
+        {
+            throw new Exception("Invalid state change");
+        }
+
+        if (await transaction.Events.UpdateAsync([eventIdSpecification, versionMatch], @event, cancellationToken) == 0)
         {
             throw new OptimisticConcurrencyException();
         }
