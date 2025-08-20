@@ -44,7 +44,7 @@ public static class HypermediaFilterFactory
         var result = await next(invocationContext);
         if (result is HypermediaResource or IValueHttpResult<HypermediaResource>)
         {
-            invocationContext.HttpContext.Response.ContentType = "application/vnd.less.hyp+json";
+            invocationContext.HttpContext.Response.ContentType = "application/vnd.lss.hyp+json";
         }
         return result;
     }
@@ -52,6 +52,8 @@ public static class HypermediaFilterFactory
     static EndpointFilterDelegate HypermediaEnricherFilterFactory(EndpointFilterFactoryContext filterFactoryContext, EndpointFilterDelegate next, HypermediaOptions options)
     {
         var returnParameterType = filterFactoryContext.MethodInfo.ReturnParameter.ParameterType;
+
+        // There is no return value
         if (returnParameterType == typeof(void) || returnParameterType == typeof(Task))
         {
             return next;

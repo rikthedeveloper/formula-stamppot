@@ -16,12 +16,9 @@ public class Event(ChampionshipId championshipId, Types.EventId eventId)
 
     public ImmutableArray<EventParticipantResult> Results { get; private set; } = [];
 
-    public bool CanStart => State == State.NotStarted && Schedule.Length > 0;
-    public bool CanFinish => State == State.Running;
-
     public void Start()
     {
-        if (!CanStart)
+        if (!CanStart(this))
             throw new InvalidOperationException("Event cannot be started");
 
         State = State.Running;
@@ -29,12 +26,16 @@ public class Event(ChampionshipId championshipId, Types.EventId eventId)
 
     public void Finish(IEnumerable<EventParticipantResult> results)
     {
-        if (!CanFinish)
+        if (!CanFinish(this))
             throw new InvalidOperationException("Event cannot be finished");
 
         State = State.Finished;
         Results = [.. results];
     }
+
+    public static bool CanStart(Event @event) => @event.State == State.NotStarted && @event.Schedule.Length > 0;
+
+    public static bool CanFinish(Event @event) => @event.State == State.Running;
 }
 
 public class EventParticipantResult(DriverId driverId, ushort position, TimeSpan totalTime, ushort awardedPoints)

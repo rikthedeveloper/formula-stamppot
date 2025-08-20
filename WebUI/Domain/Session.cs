@@ -26,7 +26,7 @@ public class Session(ChampionshipId championshipId, EventId eventId, SessionId s
 
     public void Start(FeatureCollection features, IImmutableList<IPointsSystem> pointsSystems, IImmutableList<SessionParticipant> participants)
     {
-        if (State != State.NotStarted)
+        if (!CanStart(this))
             throw new InvalidSessionStateChangeException(ChampionshipId, EventId, SessionId, State.Running, GetValidStateChanges());
 
         State = State.Running;
@@ -37,11 +37,13 @@ public class Session(ChampionshipId championshipId, EventId eventId, SessionId s
 
     public void Progress(ushort elapsedLaps, IEnumerable<LapResult> results)
     {
-        if (State != State.Running)
-            throw new InvalidSessionStateException(ChampionshipId, EventId, SessionId, State, [State.Running]);
-
-        if (elapsedLaps < ElapsedLaps || elapsedLaps > LapCount)
-            throw new InvalidSessionProgressChangeException(ChampionshipId, EventId, SessionId, elapsedLaps, (ushort)(ElapsedLaps + 1), LapCount);
+        switch (CanProgress(this, elapsedLaps))
+        {
+            case CanProgressResult.InvalidState:
+                throw new InvalidSessionStateException(ChampionshipId, EventId, SessionId, State, [State.Running]);
+            case CanProgressResult.InvalidProgress:
+                throw new InvalidSessionProgressChangeException(ChampionshipId, EventId, SessionId, elapsedLaps, (ushort)(ElapsedLaps + 1), LapCount);
+        }
 
         if (results.Count() != (elapsedLaps - ElapsedLaps))
             throw new ArgumentException("The number of results must match the number of laps progressed.");
@@ -52,11 +54,13 @@ public class Session(ChampionshipId championshipId, EventId eventId, SessionId s
 
     public void Finish()
     {
-        if (State != State.Running)
-            throw new InvalidSessionStateChangeException(ChampionshipId, EventId, SessionId, State, GetValidStateChanges());
-
-        if (ElapsedLaps != LapCount)
-            throw new InvalidSessionProgressException(ChampionshipId, EventId, SessionId, ElapsedLaps, LapCount, LapCount);
+        switch (CanFinish(this))
+        {
+            case CanFinishResult.InvalidState:
+                throw new InvalidSessionStateChangeException(ChampionshipId, EventId, SessionId, State, GetValidStateChanges());
+            case CanFinishResult.InvalidProgress:
+                throw new InvalidSessionProgressException(ChampionshipId, EventId, SessionId, ElapsedLaps, LapCount, LapCount);
+        }
 
         State = State.Finished;
         var finalLapResult = LapResults.Values.Last();
@@ -80,6 +84,39 @@ public class Session(ChampionshipId championshipId, EventId eventId, SessionId s
             return [];
 
         throw new InvalidOperationException($"Unexpected session state: {State}");
+    }
+
+    public static bool CanStart(Session session) => session.State == State.NotStarted;
+    public static CanProgressResult CanProgress(Session session, ushort targetProgress)
+    {
+        if (session.State != State.Running)
+            return CanProgressResult.InvalidState;
+        if (targetProgress < session.ElapsedLaps || targetProgress > session.LapCount)
+            return CanProgressResult.InvalidProgress;
+        return CanProgressResult.Success;
+    }
+
+    public static CanFinishResult CanFinish(Session session)
+    {
+        if (session.State != State.Running)
+            return CanFinishResult.InvalidState;
+        if (session.ElapsedLaps != session.LapCount)
+            return CanFinishResult.InvalidProgress;
+        return CanFinishResult.Success;
+    }
+
+    public enum CanProgressResult
+    {
+        Success,
+        InvalidState,
+        InvalidProgress
+    }
+
+    public enum CanFinishResult 
+    {
+        Success,
+        InvalidState,
+        InvalidProgress
     }
 }
 

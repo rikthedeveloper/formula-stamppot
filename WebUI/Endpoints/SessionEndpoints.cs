@@ -312,23 +312,6 @@ public static class SessionEndpoints
     }
 }
 
-public class InvalidSessionStateException(ChampionshipId championshipId, EventId eventId, SessionId sessionId, State[] validStates) : SessionException(championshipId, eventId, sessionId, _errorMessage, null)
-{
-    const string _errorMessage = "The requested operation is not valid for the specified Session's state.";
-    public State[] ValidStates { get; } = validStates;
-
-    public InvalidSessionStateException(SessionRouteParameters routeParameters, State[] validStates)
-        : this(routeParameters.ChampionshipId, routeParameters.EventId, routeParameters.SessionId, validStates)
-    { }
-}
-
-public class InvalidSessionStateChangeException(ChampionshipId championshipId, EventId eventId, SessionId sessionId, State requestedState, State[] validStates) : SessionException(championshipId, eventId, sessionId, _errorMessage, null)
-{
-    const string _errorMessage = "The given state transition is not valid for the specified Session.";
-    public State RequestedState { get; } = requestedState;
-    public State[] ValidStates { get; } = validStates;
-}
-
 public class SessionScheduleConflictException(ChampionshipId championshipId, EventId eventId, SessionId sessionId, SessionId conflictingSession) : SessionException(championshipId, eventId, sessionId, _errorMessage, null)
 {
     const string _errorMessage = "The Session cannot be started while the previous scheduled Session is not yet Finished";
