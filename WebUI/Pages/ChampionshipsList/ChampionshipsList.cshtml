@@ -1,0 +1,25 @@
+﻿@page "/championships"
+@using WebUI.Pages.ChampionshipsList
+@model ChampionshipsListModel
+
+@{
+    ViewData["Title"] = "Championships";
+}
+
+<h1>Championships</h1>
+<p>List of championships:</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Championship</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var championship in Model.Championships)
+        {
+            <tr>
+                <td>@championship.Name</td>
+            </tr>
+        }
+    </tbody>
+</table>
