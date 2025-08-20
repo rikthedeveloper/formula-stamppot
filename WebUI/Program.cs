@@ -42,9 +42,10 @@ public class Program
         builder.Services.ConfigureFeatures()
             .Register<FlatDriverSkillFeature>();
 
+        builder.Services.AddRazorPages();
         builder.Services.AddEndpointsApiExplorer().AddSwaggerGen();
 
-        var app = builder.Build(); 
+        var app = builder.Build();
         
         if (app.Environment.IsDevelopment())
         {
@@ -57,7 +58,6 @@ public class Program
         }
 
         app.UseHttpsRedirection();
-        //app.UseStaticFiles();
 
         app.Map("/api", api =>
         {
@@ -67,6 +67,10 @@ public class Program
 
             api.UseRouting().UseEndpoints(endpoints => endpoints.MapFormulaApi(app.Environment.IsDevelopment()));
         });
+
+        app.UseStaticFiles();
+        app.UseRouting();
+        app.MapRazorPages();
 
         app.Run();
     }
@@ -161,7 +165,7 @@ public class Program
             string typeDiscriminatorPropertyName = "name",
             IEnumerable<JsonDerivedType>? derivedTypes = null) => typeInfo =>
         {
-            if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type != typeof(T))
+            if (typeInfo.Kind is not JsonTypeInfoKind.Object || typeInfo.Type != typeof(T))
                 return;
 
             typeInfo.PolymorphismOptions = new JsonPolymorphismOptions

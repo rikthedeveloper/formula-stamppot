@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IDbConnectionProvider>(new ServiceProviderLifetimeDbConnectionProvider());
         services.TryAddSingleton(sp => sp.GetRequiredService<IDbConnectionProvider>().GetConnection());
         services.AddTransient<IObjectStore, DefaultObjectStore>();
+        services.AddTransient<IReadOnlyObjectStore, DefaultObjectStore>();
         services.AddTransient<DataMigrator>();
         services.AddHostedService<DataMigrator>();
         services.AddOptions<ObjectStoreCollectionOptions>();
