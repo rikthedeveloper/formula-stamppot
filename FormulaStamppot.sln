@@ -10,6 +10,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0FC1EE5D-4134-4C61-B3C0-06DA125F6C6D}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		.gitignore = .gitignore
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebUI.SourceGenerators", "WebUI.SourceGenerators\WebUI.SourceGenerators.csproj", "{13F0215A-1F4A-40C2-80FD-C6386F3906EE}"
