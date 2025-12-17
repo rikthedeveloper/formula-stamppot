@@ -1,0 +1,76 @@
+﻿@layer base, site, theme;
+
+@layer base {
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    html {
+        box-sizing: border-box;
+        font-size: 16px;
+    }
+
+    *, *:before, *:after {
+        box-sizing: inherit;
+    }
+
+    body {
+        /* 4. Add accessible line-height */
+        line-height: 1.5;
+        /* 5. Improve text rendering */
+        -webkit-font-smoothing: antialiased;
+    }
+
+    body, h1, h2, h3, h4, h5, h6, p, ol, ul {
+        font-weight: normal;
+    }
+
+    /* 8. Avoid text overflows */
+    p, h1, h2, h3, h4, h5, h6 {
+        overflow-wrap: break-word;
+    }
+
+    p {
+        text-wrap: pretty;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        text-wrap: balance;
+    }
+
+    ol, ul {
+        list-style: none;
+    }
+
+    /* 6. Improve media defaults */
+    img, picture, video, canvas, svg {
+        display: block;
+        max-width: 100%;
+        height: auto;
+    }
+}
+
+@layer site {
+    .form-error {
+        border: solid red;
+    }
+
+    formgroup {
+        & label, input, ul.validation-messages {
+            width: 100%;
+        }
+
+        & ul.validation-messages {
+            & li {
+                line-height: 1;
+                color: red;
+                text-decoration: underline dashed;
+            }
+        }
+    }
+
+    input:invalid {
+        border: solid red;
+    }
+}

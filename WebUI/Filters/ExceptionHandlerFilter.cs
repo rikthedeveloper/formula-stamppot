@@ -15,6 +15,10 @@ public delegate ProblemInfo ProblemInfoFactory<TException>(TException exception)
 
 public class ExceptionHandlerFilter : IEndpointFilter
 {
+    const string ProblemJsonContentType = "application/problem+json";
+    const string ExceptionMessageKey = "exception_message";
+    const string ExceptionTraceKey = "exception_trace";
+
     readonly bool _useDetailedExceptions;
     readonly Dictionary<HttpStatusCode, string> _statusCodeTitles = [];
     readonly Dictionary<Type, ProblemInfoFactory> _problemInfoFactories = [];
@@ -76,11 +80,11 @@ public class ExceptionHandlerFilter : IEndpointFilter
 
             if (_useDetailedExceptions)
             {
-                details.Extensions.Add("exception_message", ex.Message);
-                details.Extensions.Add("exception_trace", ex.StackTrace);
+                details.Extensions.Add(ExceptionMessageKey, ex.Message);
+                details.Extensions.Add(ExceptionTraceKey, ex.StackTrace);
             }
 
-            return Results.Json(details, contentType: "application/problem+json", statusCode: details.Status);
+            return Results.Json(details, contentType: ProblemJsonContentType, statusCode: details.Status);
         }
     }
 
@@ -101,10 +105,10 @@ public class ExceptionHandlerFilter : IEndpointFilter
             return sb.ToString();
         }
 
-
-        var name = ex.GetType().Name.EndsWith("EXCEPTION", StringComparison.InvariantCultureIgnoreCase) 
-            ? ex.GetType().Name[0..^"EXCEPTION".Length]
-            : ex.GetType().Name;
+        var exceptionTypeName = ex.GetType().Name;
+        var name = exceptionTypeName.EndsWith("EXCEPTION", StringComparison.InvariantCultureIgnoreCase) 
+            ? exceptionTypeName[0..^"EXCEPTION".Length]
+            : exceptionTypeName;
         return toKebabCase(name);
     }
 

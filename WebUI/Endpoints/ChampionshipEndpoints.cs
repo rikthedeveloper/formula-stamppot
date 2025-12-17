@@ -37,7 +37,7 @@ public partial class ChampionshipChangeRequestBody
 
     static partial void ConfigureValidator(AbstractValidator<ChampionshipChangeRequestBody> validator)
     {
-        validator.RuleFor(x => x.Name).NotEmpty().Length(3, 100);
+        validator.RuleFor(x => x.Name).Length(3, 100);
         validator.RuleFor(x => x.Features).NotNull();
         validator.RuleFor(x => x.PointsSystems).NotNull();
     }

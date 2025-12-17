@@ -1,0 +1,5 @@
+﻿@using WebUI.Pages
+@{
+    var requestedWith = Context.Request.Headers["X-Requested-With"].SingleOrDefault();
+        Layout = requestedWith == "XMLHttpRequest" ? "_AjaxLayout" : "_Layout";
+}

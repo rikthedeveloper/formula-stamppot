@@ -155,7 +155,7 @@ public class Program
         {
             if (typeInfo.Kind is JsonTypeInfoKind.Object && typeInfo.Type == typeof(ValidationMessage))
             {
-                var propertyNameProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(ValidationMessage.PropertyName), StringComparison.OrdinalIgnoreCase));
+                var propertyNameProperty = typeInfo.Properties.FirstOrDefault(p => p.Name.Equals(nameof(ValidationMessage.Member), StringComparison.OrdinalIgnoreCase));
                 if (propertyNameProperty is not null)
                     typeInfo.Properties.Remove(propertyNameProperty);
             }

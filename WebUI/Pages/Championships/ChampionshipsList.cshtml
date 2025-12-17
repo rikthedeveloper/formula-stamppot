@@ -1,0 +1,26 @@
+﻿@page "/"
+@model ChampionshipsListModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using WebUI.Domain
+@using WebUI.Pages.Championships
+@{
+    ViewData["Title"] = "Championships";
+}
+<h1>Championships</h1>
+<p>List of championships:</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Championship</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var championship in Model.Championships)
+        {
+            <tr>
+                <td><a asp-page="/Championships/EditChampionship" asp-route-championshipId="@Model.Base36Id(championship.Object.ChampionshipId)">@championship.Object.Name</a></td>
+            </tr>
+        }
+        <tr><a id="lnk-create" asp-page="/Championships/CreateChampionship">Create new</a></tr>
+    </tbody>
+</table>

@@ -1,0 +1,27 @@
+﻿@page "/create-championship"
+@model CreateChampionshipModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using WebUI.Domain
+@using WebUI.Pages.Championships
+@inject LinkGenerator LinkGenerator
+@{
+    ViewData["Title"] = "Create Championship";
+}
+
+@section head {
+    <link rel="linktemplate" id="edit-championship" href="@LinkGenerator.GetPathByPage("/Championships/EditChampionship", null, new { championshipId = ":championshipId" })" />
+}
+
+<h1>Create Championship</h1>
+<form id="create-championship" novalidate>
+    <formgroup>
+        <label for="name">Name</label>
+        <input for="name" />
+    </formgroup>
+    <button type="submit" id="submit-championship">Create</button>
+</form>
+<a asp-page="/Championships/ChampionshipsList">Back</a>
+
+@section scripts {
+    <script src="~/scripts/pages/create-championship.js" type="module"></script>
+}

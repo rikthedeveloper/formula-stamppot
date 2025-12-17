@@ -1,5 +1,7 @@
 ﻿using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Immutable;
+using System.Linq;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using WebUI.Endpoints.Resources;
@@ -7,7 +9,31 @@ using WebUI.Extensions;
 
 namespace WebUI.Filters;
 
-public record class ValidationMessage(string PropertyName, string Code, string Message);
+public record class ValidationMessage(string Member, object Value, string Code, string Message)
+{
+    public static ValidationMessage FromFluentValidationFailure(ValidationFailure vf) => new(
+        Member: vf.PropertyName,
+        Value: vf.AttemptedValue,
+        Message: vf.ErrorMessage,
+        Code: vf.ErrorCode.TrimFromEnd("Validator", StringComparison.OrdinalIgnoreCase))
+    {
+        AdditionalContext = vf.FormattedMessagePlaceholderValues.Where(FilterAdditionalContext).ToImmutableDictionary()
+    };
+
+    [JsonExtensionData]
+    public IDictionary<string, object> AdditionalContext { get; init; } = ImmutableDictionary.Create<string, object>();
+
+    static bool FilterAdditionalContext(KeyValuePair<string, object> value)
+    {
+        return value.Key switch
+        {
+            "MinLength" => true,
+            "MaxLength" => true,
+            "TotalLength" => true,
+            _ => false,
+        };
+    }
+}
 
 public interface IValidator
 {
@@ -20,12 +46,12 @@ public class ValidationException(IEnumerable<ValidationMessage> failures) : Appl
         : this([])
     { }
 
-    public ValidationException(ValidationResult validationResult) 
-        : this(validationResult.Errors.Select(vf => new ValidationMessage(vf.PropertyName, vf.ErrorMessage, vf.ErrorCode.TrimFromEnd("Validator", StringComparison.OrdinalIgnoreCase))))
+    public ValidationException(ValidationResult validationResult)
+        : this(validationResult.Errors.Select(ValidationMessage.FromFluentValidationFailure))
     { }
 
     public IReadOnlyDictionary<string, ValidationMessage[]> Errors { get; } = failures
-        .GroupBy(e => e.PropertyName)
+        .GroupBy(e => e.Member)
         .ToDictionary(failureGroup => failureGroup.Key, failureGroup => failureGroup.ToArray());
 }
 
