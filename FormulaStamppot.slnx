@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".github/workflows/dotnet.yml" />
+    <File Path=".gitignore" />
+    <File Path="directory.build.targets" />
+    <File Path="directory.packages.props" />
+  </Folder>
+  <Folder Name="/Solution Items/copilot/">
+    <File Path=".github/copilot-instructions.md" />
+  </Folder>
+  <Folder Name="/Solution Items/copilot/instructions/">
+    <File Path=".github/instructions/coding-style-csharp.instructions.md" />
+    <File Path=".github/instructions/follow-up-question.instructions.md" />
+    <File Path=".github/instructions/unit-and-integration-tests.instructions.md" />
+  </Folder>
+  <Project Path="WebUI.SourceGenerators/WebUI.SourceGenerators.csproj" />
+  <Project Path="WebUI.UnitTests/WebUI.UnitTests.csproj" />
+  <Project Path="WebUI/WebUI.csproj" />
+</Solution>
