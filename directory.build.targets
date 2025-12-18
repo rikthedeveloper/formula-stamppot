@@ -1,0 +1,12 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <WarningsAsErrors>true</WarningsAsErrors>
+    <Nullable>enable</Nullable> 
+  </PropertyGroup>
+  <Target Name="BlockUnwantedDependencies" AfterTargets="ResolvePackageAssets" BeforeTargets="CollectPackageDependencies">
+      <ItemGroup>
+          <UnwantedReferences Include="@(ResolvedCompileFileDefinitions)" Condition="'%(NuGetPackageId)'=='FluentAssertions' AND '%(NuGetPackageVersion)'>='8.0.0'" />
+      </ItemGroup>
+      <Error Text="FluentAssertions v%(UnwantedReferences.NuGetPackageVersion) was detected. Use v7.x or lower." Condition="'@(UnwantedReferences)'!=''" />
+  </Target>
+</Project>

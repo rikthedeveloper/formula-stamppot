@@ -121,6 +121,7 @@ public class SessionEndpointTests
         sessionResource.Participants.Should().HaveCount(2);
     }
 
+    [Fact(Skip = "Not implemented")]
     public async Task StartSessionById_Uses_StartingOrderStrategy_Correctly()
     {
 

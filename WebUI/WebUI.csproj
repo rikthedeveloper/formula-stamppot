@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <DisableBuildCompression>true</DisableBuildCompression>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,22 +14,21 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="FluentValidation" Version="11.9.2" />
-    <PackageReference Include="IdGen" Version="3.0.7" />
-    <PackageReference Include="IdGen.DependencyInjection" Version="3.0.7" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
-    <PackageReference Include="Microsoft.TypeScript.MSBuild" Version="5.9.2">
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="IdGen" />
+    <PackageReference Include="IdGen.DependencyInjection" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.TypeScript.MSBuild">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SqlKata" Version="2.4.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore.ReDoc" Version="6.7.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.7.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.7.3" />
-    <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
-    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
+    <PackageReference Include="SqlKata" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+    <PackageReference Include="Swashbuckle.AspNetCore.ReDoc" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
+    <PackageReference Include="System.IO.Hashing" />
+    <PackageReference Include="System.Linq.Async" />
   </ItemGroup>
   
   <ItemGroup>
