@@ -1,4 +1,17 @@
 ﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using Microsoft.AspNetCore.Components
+@using WebUI.Pages.Shared
+@inject IFileVersionProvider fileVersionProvider;
+@{
+    string versioned(string src)
+            => fileVersionProvider.AddFileVersionToPath(Context.Request.PathBase, src);
+
+    var importMap = new ImportMapDefinition(new Dictionary<string, string>
+    {
+        { "system/navigation", versioned("/scripts/system/navigation.js")},
+        { "api/formula-discord", versioned("/scripts/api/formula-discord.js")},
+    }, null, null);
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,15 +23,7 @@
     <link rel="icon" href="~/favicon.ico">
     <meta name="theme-color" content="#ffffff">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
-    <script type="importmap">
-        {
-            "imports": {
-                "system/navigation": "/scripts/system/navigation.js",
-                "api/formula-discord": "/scripts/api/formula-discord.js",
-                "app": "/scripts/app.js"
-            }
-        }
-    </script>
+    <script type="importmap" asp-importmap="@importMap"></script>
     @RenderSection("head", required: false)
 </head>
 <body>

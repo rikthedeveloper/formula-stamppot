@@ -10,7 +10,7 @@
     "target": "esnext",
     "outDir": "wwwroot/scripts",
     "paths": {
-      "@app/*": [ "./Scripts/*" ]
+      "*": [ "./Scripts/*" ]
     }
   },
   "include": [
