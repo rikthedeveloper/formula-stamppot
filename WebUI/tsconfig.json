@@ -8,12 +8,17 @@
     "sourceMap": false,
     "module": "esnext",
     "target": "esnext",
-    "outDir": "wwwroot/scripts"
+    "outDir": "wwwroot/scripts",
+    "paths": {
+      "@app/*": [ "./Scripts/*" ]
+    }
   },
   "include": [
-    "wwwroot/scripts/**/*"
+    "Scripts/**/*",
+    "Pages/**/*"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "wwwroot"
   ]
 }

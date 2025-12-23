@@ -1,5 +1,5 @@
-﻿import { navigate, onLoad } from "system/navigation";
-import { CreateChampionshipRequest, createChampionship, ProblemDetails, ValidationProblemDetails, Championship, Hypermedia } from "api/formula-discord";
+﻿import { navigate, onLoad } from "@app/system/navigation";
+import { CreateChampionshipRequest, createChampionship, ProblemDetails, ValidationProblemDetails, Championship, Hypermedia } from "@app/api/formula-discord";
 
 function getValidationUlId(member: string) {
     return `validation-messages-${member}`;
