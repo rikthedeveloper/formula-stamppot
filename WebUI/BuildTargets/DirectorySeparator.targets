@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <DirectorySeparator Condition="$([MSBuild]::IsOSPlatform('Windows'))">\</DirectorySeparator>
+    <DirectorySeparator Condition="!$([MSBuild]::IsOSPlatform('Windows'))">/</DirectorySeparator>
+  </PropertyGroup>
+</Project>

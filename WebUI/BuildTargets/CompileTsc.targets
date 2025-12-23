@@ -1,0 +1,78 @@
+<Project>
+  <Import Project="DirectorySeparator.targets" Condition="'$(DirectorySeparator)' == ''" />
+  <Import Project="NodeJS.targets" />
+  
+  <PropertyGroup>
+    <TscLogDir Condition="'$(TscLogDir)' == '' And '$(IntermediateOutputPath)' != ''">$(IntermediateOutputPath)</TscLogDir>
+    <TscLogDir Condition="'$(TscLogDir)' == '' And '$(IntermediateOutputPath)' == ''">$(MSBuildProjectDirectory)$(DirectorySeparator)obj$(DirectorySeparator)</TscLogDir>
+    <TscOutputLog>$(TscLogDir)tsc.out</TscOutputLog>
+    
+    <BuildTscBeforeTargets>
+      ResolveProjectStaticWebAssets;
+      $(BuildTscBeforeTargets)
+    </BuildTscBeforeTargets>
+  </PropertyGroup>
+
+  <Target Name="GetTsConfigOutDir">
+    <PropertyGroup>
+      <TscTsConfig Condition="'$(TscTsConfig)' == ''">tsconfig.json</TscTsConfig>
+    </PropertyGroup>
+    <JsonPeek ContentPath="$(TscTsConfig)" Query="$.compilerOptions.outDir">
+      <Output TaskParameter="Result" PropertyName="__TscTsConfigOutDirTmp"></Output>
+    </JsonPeek>
+    <PropertyGroup>
+      <TscTsConfigOutDir>$([MSBuild]::EnsureTrailingSlash('$([System.String]::Copy('$(__TscTsConfigOutDirTmp)').Replace('/', '\').Replace('\', '$(DirectorySeparator)'))'))</TscTsConfigOutDir>
+      <!--<TscTsConfigOutDir Condition="$([System.String]::Copy('$(TscTsConfigOutDir)').EndsWith('$(DirectorySeparator)')) != true">$(TscTsConfigOutDir)$(DirectorySeparator)</TscTsConfigOutDir>-->
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="BuildTsc"
+          BeforeTargets="$(BuildTscBeforeTargets)" 
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <PropertyGroup>
+      <TscOutDir Condition="'$(IntermediateOutputPath)' != ''">$(IntermediateOutputPath)ts$(DirectorySeparator)</TscOutDir>
+      <TscOutDir Condition="'$(IntermediateOutputPath)' == ''">$(MSBuildProjectDirectory)obj$(DirectorySeparator)ts$(DirectorySeparator)</TscOutDir>
+    </PropertyGroup>
+
+    <Exec Command="npx tsc --outDir $(TscOutDir)" />
+
+    <ItemGroup>
+      <BuildTscOutput Include="$(TscOutDir)**$(DirectorySeparator)*.*" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="AssembleTscInOutGroups" DependsOnTargets="GetTsConfigOutDir" AfterTargets="BuildTsc">
+    <ItemGroup>
+      <TscEmittedFiles Include="@(BuildTscOutput)">
+        <DestinationPath>$(TscTsConfigOutDir)%(RecursiveDir)%(Filename)%(Extension)</DestinationPath>
+      </TscEmittedFiles>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="MoveTscOutputToDestination" DependsOnTargets="AssembleTscInOutGroups" AfterTargets="BuildTsc">
+    <ItemGroup>
+      <__EmittedFilesToMove Include="@(TscEmittedFiles->'%(Identity)')" />
+      <__EmittedFilesDestinations Include="@(TscEmittedFiles->'%(DestinationPath)')" />
+    </ItemGroup>
+    <Move SourceFiles="@(__EmittedFilesToMove)" DestinationFiles="@(__EmittedFilesDestinations)" />
+    <ItemGroup>
+      <Content Include="@(TscEmittedFiles->'%(DestinationPath)')" />
+    </ItemGroup>
+  </Target>
+  
+  <Target Name="WriteTscOutputLog" DependsOnTargets="MoveTscOutputToDestination" AfterTargets="MoveTscOutputToDestination">
+    <WriteLinesToFile Condition="$(TscOutputLog) != ''" File="$(TscOutputLog)" Lines="@(TscEmittedFiles->'%(DestinationPath)')" Overwrite="false" />
+  </Target>
+
+  <Target Name="LoadExistingTscEmittedFiles">
+    <ReadLinesFromFile File="$(TscOutputLog)">
+      <Output TaskParameter="Lines" ItemName="ExistingTscEmittedFiles" />
+    </ReadLinesFromFile>
+  </Target>
+
+  <Target Name="DeleteExistingTscEmittedFiles" Condition="'$(DesignTimeBuild)' != 'true'" BeforeTargets="Clean;BuildTsc" DependsOnTargets="LoadExistingTscEmittedFiles">
+    <Delete Files="@(ExistingTscEmittedFiles)" />
+    <Delete Files="$(TscOutputLog)" />
+  </Target>
+</Project>

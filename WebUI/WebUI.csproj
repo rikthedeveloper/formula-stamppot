@@ -17,11 +17,11 @@
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="IdGen" />
     <PackageReference Include="IdGen.DependencyInjection" />
-    <PackageReference Include="Microsoft.Data.Sqlite" />
-    <PackageReference Include="Microsoft.TypeScript.MSBuild">
+    <PackageReference Include="JsonPeek">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="SqlKata" />
     <PackageReference Include="Swashbuckle.AspNetCore" />
     <PackageReference Include="Swashbuckle.AspNetCore.ReDoc" />
@@ -34,4 +34,38 @@
   <ItemGroup>
     <ProjectReference Include="..\WebUI.SourceGenerators\WebUI.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
   </ItemGroup>
+  <!-- Typescript compilation -->
+  <Import Project="BuildTargets/CompileTsc.targets" />
+
+  <!-- Rewrites /Scripts paths during Tsc build to be placed in wwwroot/scripts -->
+  <Target Name="UpdateTscOutputDestinationScriptsPaths" Condition="'$(DesignTimeBuild)' != 'true'" DependsOnTargets="AssembleTscInOutGroups" BeforeTargets="MoveTscOutputToDestination">
+    <PropertyGroup>
+      <__InvalidPath>$(TscOutDir)Scripts</__InvalidPath>
+      <__ReplacementPath>wwwroot$(DirectorySeparator)</__ReplacementPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <__TscEmittedScriptsFilesTmp Include="@(TscEmittedFiles)" Condition="$([System.String]::Copy('%(Identity)').StartsWith('$(__InvalidPath)'))">
+        <DestinationPath>$(__ReplacementPath)$([System.String]::Copy('%(RecursiveDir)%(Filename)%(Extension)').ToLowerInvariant())</DestinationPath>
+      </__TscEmittedScriptsFilesTmp>
+      <TscEmittedFiles Remove="@(__TscEmittedScriptsFilesTmp)" />
+      <TscEmittedFiles Include="@(__TscEmittedScriptsFilesTmp)" />
+    </ItemGroup>
+  </Target>
+  
+  <!-- Rewrites /Pages paths during Tsc build to be lowercase. -->
+  <Target Name="UpdateTscOutputDestinationPagesPaths" Condition="'$(DesignTimeBuild)' != 'true'" DependsOnTargets="AssembleTscInOutGroups" BeforeTargets="MoveTscOutputToDestination">
+    <PropertyGroup>
+      <__InvalidPath>$(TscOutDir)Pages</__InvalidPath>
+      <__ReplacementPath>wwwroot$(DirectorySeparator)scripts$(DirectorySeparator)</__ReplacementPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <__TscEmittedPagesFilesTmp Include="@(TscEmittedFiles)" Condition="$([System.String]::Copy('%(Identity)').StartsWith('$(__InvalidPath)'))">
+        <DestinationPath>$(__ReplacementPath)$([System.String]::Copy('%(RecursiveDir)%(Filename)%(Extension)').ToLowerInvariant())</DestinationPath>
+      </__TscEmittedPagesFilesTmp>
+      <TscEmittedFiles Remove="@(__TscEmittedPagesFilesTmp)" />
+      <TscEmittedFiles Include="@(__TscEmittedPagesFilesTmp)" />
+    </ItemGroup>
+  </Target>
 </Project>
