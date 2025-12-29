@@ -8,11 +8,11 @@
 }
 <h1>@Model.Championship.Object.Name</h1>
 <form id="edit-championship" novalidate>
-    <input type="hidden" for="championshipId" value="@Model.Championship.Object.ChampionshipId.ToBase36String()" />
-    <input type="hidden" for="version" value="@Model.Championship.Version" />
+    <input type="hidden" name="championshipId" value="@Model.Championship.Object.ChampionshipId.ToBase36String()" />
+    <input type="hidden" name="version" value="@Model.Championship.Version" />
     <formgroup>
         <label for="name">Name</label>
-        <input for="name" value="@Model.Championship.Object.Name" />
+        <input name="name" value="@Model.Championship.Object.Name" />
     </formgroup>
     <button type="submit" id="submit-championship">Save</button>
 </form>

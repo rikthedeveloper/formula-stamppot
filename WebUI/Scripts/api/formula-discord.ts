@@ -20,6 +20,10 @@ export class ProblemDetails {
     ) {
     }
 
+    toFormError(): { message: string } {
+        return { message: this.detail || this.title || 'An error has occurred' };
+    }
+
     static fromObject(obj: any): ProblemDetails {
         if (obj.type.endsWith('/errors/validation')) {
             return ValidationProblemDetails.fromObject(obj);
@@ -54,6 +58,14 @@ export class ValidationProblemDetails extends ProblemDetails {
         public validationMessages: { [member: string]: ValidationMessage[] } = {}
     ) {
         super(type, title, status, detail, instance);
+    }
+
+    toFormError(): { message: string; results: { [field: string]: string[] } } {
+        const results: { [field: string]: string[] } = {};
+        for (const member in this.validationMessages) {
+            results[member] = this.validationMessages[member].map(msg => msg.message);
+        }
+        return { message: this.detail || this.title || 'Validation error occurred', results };
     }
 
     static fromObject(obj: any): ValidationProblemDetails {
