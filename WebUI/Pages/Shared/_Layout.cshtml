@@ -8,7 +8,7 @@
 
     var importMap = new ImportMapDefinition(new Dictionary<string, string>
     {
-        { "system/navigation", versioned("/scripts/system/navigation.js")},
+        { "navigation", versioned("/scripts/navigation.js")},
         { "api/formula-discord", versioned("/scripts/api/formula-discord.js")},
         { "form", versioned("/scripts/form.js")},
     }, null, null);
@@ -28,10 +28,11 @@
     @RenderSection("head", required: false)
 </head>
 <body>
-    <main route="@Context.Request.Path">
+    <main>
         @RenderBody()
     </main>
     <script src="~/scripts/app.js" type="module" asp-append-version="true"></script>
+    <script src="~/scripts/navigation.js" type="module" asp-append-version="true"></script>
     @RenderSection("scripts", required: false)
 </body>
 </html>

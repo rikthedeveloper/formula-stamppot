@@ -1,4 +1,4 @@
-﻿import { navigate, onLoad } from "system/navigation";
+﻿import { navigate, onLoad } from "navigation";
 import { CreateChampionshipRequest, createChampionship, ProblemDetails, ValidationProblemDetails, Championship } from "api/formula-discord";
 import { FormManager, form } from "form";
 
