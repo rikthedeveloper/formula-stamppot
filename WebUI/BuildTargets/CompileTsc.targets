@@ -57,7 +57,8 @@
     </ItemGroup>
     <Move SourceFiles="@(__EmittedFilesToMove)" DestinationFiles="@(__EmittedFilesDestinations)" />
     <ItemGroup>
-      <Content Include="@(TscEmittedFiles->'%(DestinationPath)')" />
+      <TypeScriptContent Include="@(TscEmittedFiles->'%(DestinationPath)')" />
+      <Content Include="@(TypeScriptContent)" />
     </ItemGroup>
   </Target>
   
