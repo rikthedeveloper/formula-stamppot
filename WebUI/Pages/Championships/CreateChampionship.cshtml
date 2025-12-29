@@ -9,7 +9,11 @@
 }
 
 @section head {
-    <link rel="linktemplate" id="edit-championship" href="@LinkGenerator.GetPathByPage("/Championships/EditChampionship", null, new { championshipId = ":championshipId" })" />
+    <script type="routes">
+        {
+            "edit-championship": "@System.Web.HttpUtility.UrlDecode(LinkGenerator.GetPathByPage("/Championships/EditChampionship", null, new { championshipId = ":championshipId" }))"
+        }
+    </script>
 }
 
 <h1>Create Championship</h1>

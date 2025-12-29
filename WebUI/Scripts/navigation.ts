@@ -120,6 +120,11 @@ class AjaxNavigator {
         this._components.set(key, this._currentComponent);
         this.routeHost.setAttribute('route', key);
 
+        const routesElement = document.head.querySelector('script[type="routes"]');
+        const initialRoutes = JSON.parse(routesElement?.textContent || '{}');
+        routes = { ...routes, ...initialRoutes };
+        routesElement?.remove();
+
         document.addEventListener('DOMContentLoaded', async event => {
             this._currentComponent?.onLoad.fire();
         }, { once: true });
@@ -150,6 +155,9 @@ class AjaxNavigator {
         for (const element of html.head.children) {
             if (element instanceof HTMLTitleElement) {
                 document.title = element.textContent;
+            } else if (element instanceof HTMLScriptElement && element.type == 'routes') {
+                const newRoutes = JSON.parse(element.textContent || '{}');
+                routes = { ...routes, ...newRoutes };
             } else {
                 const existingElement = document.head.querySelector(`${element.tagName}#${element.id}`);
                 if (existingElement) {
@@ -178,6 +186,9 @@ class AjaxNavigator {
     }
 }
 
+export let routeUnloadSignal: AbortSignal;
+export let routes: { [key: string]: string } = {};
+
 const routeHost = document.querySelector('main')!;
 const scriptHost = document.querySelector('script:last-of-type')!.parentElement!;
 const navigator = new AjaxNavigator(routeHost, scriptHost);
@@ -201,4 +212,23 @@ export function onLoad(hook: HookFn) {
 
 export function onUnload(hook: HookFn) {
     navigator.onUnload(hook);
+}
+
+export function route(name: string, params?: { [key: string]: string | number }): URL {
+    const routeTemplate = routes[name];
+    if (!routeTemplate) {
+        throw new Error(`Route '${name}' not found`);
+    }
+
+    let urlStr = routeTemplate;
+    if (params) {
+        for (const [key, value] of Object.entries(params)) {
+            urlStr = urlStr.replace(key.startsWith(':') ? key : `:${key}`, encodeURIComponent(value.toString()));
+        }
+    }
+    return new URL(urlStr, location.origin);
+}
+
+export async function navigateToRoute(name: string, params?: { [key: string]: string | number }) {
+    return await navigate(route(name, params));
 }

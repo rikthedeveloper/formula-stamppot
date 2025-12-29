@@ -1,10 +1,10 @@
-﻿import { navigate, onLoad } from "navigation";
+﻿import { navigateToRoute, onLoad } from "navigation";
 import { CreateChampionshipRequest, createChampionship, ProblemDetails, ValidationProblemDetails, Championship } from "api/formula-discord";
 import { FormManager, form } from "form";
 
 let formMgr: FormManager;
 
-async function onSubmitChampionship(e: SubmitEvent) {
+async function onSubmitChampionship() {
     const nameInput: HTMLInputElement | null = formMgr.field('name');
     const championship: CreateChampionshipRequest = new CreateChampionshipRequest(nameInput.value);
     const res = await createChampionship(championship);
@@ -13,12 +13,7 @@ async function onSubmitChampionship(e: SubmitEvent) {
     } else if (res instanceof ProblemDetails) {
         formMgr.setError(res.toFormError());
     } else if (res.data instanceof Championship) {
-        const linkTpl = document.head.querySelector("link[rel='linktemplate']#edit-championship");
-        if (!linkTpl || !linkTpl.hasAttribute('href'))
-            throw new Error('Edit championship link template not found');
-
-        const urlTpl = decodeURIComponent(linkTpl.getAttribute('href')!).replace(':championshipId', res.data.championshipId);
-        await navigate(new URL(urlTpl, location.origin));
+        await navigateToRoute('edit-championship', { championshipId: res.data.championshipId });
     }
 }
 

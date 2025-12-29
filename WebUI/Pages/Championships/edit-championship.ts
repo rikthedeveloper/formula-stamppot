@@ -4,7 +4,7 @@ import { FormManager, form } from "form";
 
 let formMgr: FormManager;
 
-async function onSubmitChampionship(e: SubmitEvent) {
+async function onSubmitChampionship() {
     const championshipIdInput = formMgr.field('championshipId');
     const versionInput = formMgr.field('version');
     const nameInput = formMgr.field('name');
