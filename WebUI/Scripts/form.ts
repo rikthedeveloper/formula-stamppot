@@ -1,4 +1,6 @@
-﻿export type FormError = {
+﻿import { routeUnloadSignal } from "./navigation.js";
+
+export type FormError = {
     message: string;
 }
 
@@ -82,13 +84,24 @@ export class FormManager {
         return input;
     }
 
-    onSubmit(handler: (e: SubmitEvent) => void) {
+    onSubmit(handler: (e: SubmitEvent) => void, opts?: {
+        removeOnRouteChange: boolean;
+        signal: AbortSignal;
+    }) {
         function onSubmitHandlerWrapper(e: SubmitEvent) {
             e.preventDefault();
             handler(e);
         }
 
-        this.formElement.addEventListener('submit', onSubmitHandlerWrapper);
+        const handlerOpts: AddEventListenerOptions = {};
+        if (opts && (opts.removeOnRouteChange || opts.removeOnRouteChange === undefined) && !opts.signal) {
+            handlerOpts.signal = routeUnloadSignal;
+        }
+        else if (opts && opts.signal) {
+            handlerOpts.signal = opts.signal;
+        }
+
+        this.formElement.addEventListener('submit', onSubmitHandlerWrapper, handlerOpts);
     }
 
     setError(error: FormError) {

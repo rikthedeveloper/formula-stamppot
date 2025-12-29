@@ -81,6 +81,8 @@ class Hook {
 class Component {
     private _onLoad: Hook = new Hook();
     private _onUnload: Hook = new Hook();
+    private _abort = new AbortController();
+
     constructor(private _path: string) { }
 
     get path() {
@@ -94,11 +96,20 @@ class Component {
     get onUnload() {
         return this._onUnload;
     }
+
+    get unloadSignal() {
+        return this._abort.signal;
+    }
+
+    abort() {
+        this._abort.abort('unload');
+        this._abort = new AbortController();
+    }
 }
 
 class AjaxNavigator {
     private _components: Map<string, Component> = new Map();
-    private _currentComponent?: Component;
+    private _currentComponent: Component;
 
     constructor(
         private routeHost: Element,
@@ -120,14 +131,17 @@ class AjaxNavigator {
 
         // Fire unload hooks for the previous component
         await this._currentComponent!.onUnload.fire();
+        this._currentComponent!.abort();
 
         // Update the current component
         const key = url.pathname;
-        this._currentComponent = this._components.get(key);
-        if (!this._currentComponent) {
-            this._currentComponent = new Component(key);
-            this._components.set(key, this._currentComponent);
+        let currentComponent = this._components.get(key);
+        if (!currentComponent) {
+            currentComponent = new Component(key);
+            this._components.set(key, currentComponent);
         }
+        this._currentComponent = currentComponent;
+        routeUnloadSignal = this._currentComponent.unloadSignal;
 
         this.routeHost.setAttribute('route', key);
         window.history.pushState({}, '', url.pathname + url.search + url.hash);
